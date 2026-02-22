@@ -592,6 +592,168 @@ def draw_2d_rotation(points, new_points, theta_deg, clockwise=False):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 2D Translation
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_2d_translation(points, tx, ty):
+    """Translate a list of (x, y) points by (tx, ty)."""
+    rows = []
+    new_points = []
+    for i, (x, y) in enumerate(points):
+        xp = x + tx
+        yp = y + ty
+        rows.append({
+            "Point": POINT_LABELS[i],
+            "x": x,
+            "y": y,
+            "Tx": tx,
+            "Ty": ty,
+            "x' = x + Tx": round(xp, 4),
+            "y' = y + Ty": round(yp, 4),
+        })
+        new_points.append((round(xp, 4), round(yp, 4)))
+    return rows, new_points
+
+
+def run_2d_translation_circle(cx, cy, r, tx, ty):
+    """Translate a circle centre by (tx, ty); radius is unchanged."""
+    new_cx = round(cx + tx, 4)
+    new_cy = round(cy + ty, 4)
+    rows = [
+        {"Attribute": "Center x",
+         "Original": cx,
+         "Formula": f"x' = x + Tx = {cx} + ({tx})",
+         "New": new_cx},
+        {"Attribute": "Center y",
+         "Original": cy,
+         "Formula": f"y' = y + Ty = {cy} + ({ty})",
+         "New": new_cy},
+        {"Attribute": "Radius r",
+         "Original": r,
+         "Formula": "r  (unchanged)",
+         "New": r},
+    ]
+    return rows, new_cx, new_cy
+
+
+def draw_2d_translation(points, new_points, tx, ty,
+                        is_circle=False, radius=None):
+    """Visualise original and translated shape on a dark-themed plot."""
+    if not points:
+        return None
+    all_x = [p[0] for p in points] + [p[0] for p in new_points]
+    all_y = [p[1] for p in points] + [p[1] for p in new_points]
+    if is_circle and radius is not None:
+        all_x += [points[0][0] - radius, points[0][0] + radius,
+                  new_points[0][0] - radius, new_points[0][0] + radius]
+        all_y += [points[0][1] - radius, points[0][1] + radius,
+                  new_points[0][1] - radius, new_points[0][1] + radius]
+    span = max(max(all_x) - min(all_x), max(all_y) - min(all_y), 4)
+    pad  = span * 0.35
+    cx_c = (max(all_x) + min(all_x)) / 2
+    cy_c = (max(all_y) + min(all_y)) / 2
+    half = span / 2 + pad
+    xmin_p, xmax_p = cx_c - half, cx_c + half
+    ymin_p, ymax_p = cy_c - half, cy_c + half
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    fig.patch.set_facecolor("#0e1117")
+    ax.set_facecolor("#0e1117")
+    ax.axhline(0, color="#555", linewidth=0.9, zorder=1)
+    ax.axvline(0, color="#555", linewidth=0.9, zorder=1)
+    ax.grid(True, color="#1e2030", linewidth=0.6, zorder=0)
+
+    if is_circle and radius is not None:
+        theta_arr = np.linspace(0, 2 * np.pi, 360)
+        ox_c, oy_c   = points[0]
+        nx_c, ny_c   = new_points[0]
+        # Original circle
+        ax.plot(ox_c + radius * np.cos(theta_arr),
+                oy_c + radius * np.sin(theta_arr),
+                color="#3498db", linewidth=1.8, alpha=0.7,
+                linestyle="--", zorder=2)
+        # Translated circle
+        ax.plot(nx_c + radius * np.cos(theta_arr),
+                ny_c + radius * np.sin(theta_arr),
+                color="#2ecc71", linewidth=1.8, alpha=0.7,
+                linestyle="--", zorder=2)
+        # Centre points
+        ax.scatter(ox_c, oy_c, color="#3498db", s=80, zorder=5,
+                   edgecolors="#2980b9", linewidths=1.2)
+        ax.scatter(nx_c, ny_c, color="#2ecc71", s=80, zorder=5,
+                   edgecolors="#27ae60", linewidths=1.2)
+        ax.text(ox_c + 0.06 * span, oy_c + 0.06 * span,
+                f"C({ox_c}, {oy_c})",
+                color="#7fb3d3", fontsize=8, fontweight="bold", zorder=6,
+                path_effects=[pe.withStroke(linewidth=1.8,
+                                            foreground="#0e1117")])
+        ax.text(nx_c + 0.06 * span, ny_c + 0.06 * span,
+                f"C'({nx_c}, {ny_c})",
+                color="#82e0aa", fontsize=8, fontweight="bold", zorder=6,
+                path_effects=[pe.withStroke(linewidth=1.8,
+                                            foreground="#0e1117")])
+        # Arrow from old centre to new centre
+        ax.annotate("", xy=(nx_c, ny_c), xytext=(ox_c, oy_c),
+                    arrowprops=dict(arrowstyle="->", color="#f39c12",
+                                   lw=1.5, alpha=0.8),
+                    zorder=3)
+    else:
+        if len(points) > 1:
+            ox_poly = [p[0] for p in points] + [points[0][0]]
+            oy_poly = [p[1] for p in points] + [points[0][1]]
+            ax.plot(ox_poly, oy_poly, color="#3498db", linewidth=1.4,
+                    alpha=0.55, linestyle="--", zorder=2)
+            nx_poly = [p[0] for p in new_points] + [new_points[0][0]]
+            ny_poly = [p[1] for p in new_points] + [new_points[0][1]]
+            ax.plot(nx_poly, ny_poly, color="#2ecc71", linewidth=1.4,
+                    alpha=0.55, linestyle="--", zorder=2)
+        for (ox2, oy2), (nx2, ny2) in zip(points, new_points):
+            ax.annotate("", xy=(nx2, ny2), xytext=(ox2, oy2),
+                        arrowprops=dict(arrowstyle="->", color="#f39c12",
+                                        lw=1.1, alpha=0.55),
+                        zorder=3)
+        for i, (px, py) in enumerate(points):
+            ax.scatter(px, py, color="#3498db", s=80, zorder=5,
+                       edgecolors="#2980b9", linewidths=1.2)
+            ax.text(px + 0.06 * span, py + 0.06 * span,
+                    f"{POINT_LABELS[i]}({px}, {py})",
+                    color="#7fb3d3", fontsize=8, fontweight="bold", zorder=6,
+                    path_effects=[pe.withStroke(linewidth=1.8,
+                                                foreground="#0e1117")])
+        for i, (px, py) in enumerate(new_points):
+            ax.scatter(px, py, color="#2ecc71", s=80, zorder=5,
+                       edgecolors="#27ae60", linewidths=1.2)
+            ax.text(px + 0.06 * span, py + 0.06 * span,
+                    f"{POINT_LABELS[i]}'({px}, {py})",
+                    color="#82e0aa", fontsize=8, fontweight="bold", zorder=6,
+                    path_effects=[pe.withStroke(linewidth=1.8,
+                                                foreground="#0e1117")])
+
+    legend_elements = [
+        mpatches.Patch(facecolor="#3498db", edgecolor="#2980b9",
+                       label="Original"),
+        mpatches.Patch(facecolor="#2ecc71", edgecolor="#27ae60",
+                       label=f"Translated  (Tx={tx}, Ty={ty})"),
+        plt.Line2D([0], [0], color="#f39c12", linewidth=1.5,
+                   marker=">", markersize=6, label="Translation direction"),
+    ]
+    ax.legend(handles=legend_elements, loc="upper left", fontsize=7,
+              framealpha=0.3, labelcolor="white", facecolor="#1a1d23")
+    ax.set_xlim(xmin_p, xmax_p)
+    ax.set_ylim(ymin_p, ymax_p)
+    ax.set_aspect("equal")
+    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
+    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
+    ax.set_title(f"2D Translation  \u2014  T = ({tx}, {ty})",
+                 color="#dddddd", fontsize=10, pad=8)
+    ax.tick_params(colors="#666666", labelsize=7)
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#333333")
+    plt.tight_layout()
+    return fig
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # 3D Rotation
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -973,109 +1135,292 @@ Loop continues while $x \leq y$.
 # TAB 3 — 2D Transformation
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_2d:
-    section_header("2D Rotation", "tba", "tba")
+    subtab_rot2d, subtab_trans2d = st.tabs([
+        "↻  2D Rotation",
+        "↔  2D Translation",
+    ])
 
-    # ── Direction toggle ─────────────────────────────────────────────────────
-    direction = st.radio(
-        "Rotation direction",
-        options=["Counter-Clockwise (CCW)  ↺", "Clockwise (CW)  ↻"],
-        horizontal=True,
-        key="rot2d_dir",
-    )
-    clockwise_2d = direction.startswith("Clockwise")
+    # ══════════════════════════════════════════════════════════════════════════
+    # SUB-TAB A — 2D Rotation
+    # ══════════════════════════════════════════════════════════════════════════
+    with subtab_rot2d:
+        section_header("2D Rotation", "tba", "tba")
 
-    # ── Rotation angle ────────────────────────────────────────────────────────
-    theta_deg = st.number_input(
-        "Rotation angle θ (degrees)",
-        value=45.0, min_value=0.0, max_value=360.0,
-        step=1.0, format="%.2f", key="rot2d_theta",
-    )
-
-    st.divider()
-
-    # ── Number of points ─────────────────────────────────────────────────────
-    st.subheader("Input Points")
-    n_pts = st.slider("Number of points", min_value=1, max_value=10,
-                      value=3, key="rot2d_npts")
-
-    # Build grid of input fields (up to 5 columns per row)
-    points_2d = []
-    cols_per_row = min(n_pts, 5)
-    for row_start in range(0, n_pts, cols_per_row):
-        row_cols = st.columns(cols_per_row)
-        for j, col in enumerate(row_cols):
-            idx = row_start + j
-            if idx >= n_pts:
-                break
-            label = POINT_LABELS[idx]
-            with col:
-                st.markdown(f"**Point {label}**")
-                sub = st.columns(2)
-                px = sub[0].number_input(f"x", value=float(idx + 1),
-                                         step=1.0, key=f"rot2d_x{idx}",
-                                         label_visibility="visible")
-                py = sub[1].number_input(f"y", value=float(idx + 1),
-                                         step=1.0, key=f"rot2d_y{idx}",
-                                         label_visibility="visible")
-                points_2d.append((float(px), float(py)))
-
-    st.divider()
-
-    # ── Formula / Derivation ─────────────────────────────────────────────────
-    with st.expander("📐  Formula & Derivation", expanded=True):
-        st.markdown(
-            "<style>.katex-display{text-align:left!important;margin:0.3rem 0!important;}"
-            ".katex-display>.katex{text-align:left!important;}</style>",
-            unsafe_allow_html=True,
+        # ── Direction toggle ──────────────────────────────────────────────────
+        direction = st.radio(
+            "Rotation direction",
+            options=["Counter-Clockwise (CCW)  ↺", "Clockwise (CW)  ↻"],
+            horizontal=True,
+            key="rot2d_dir",
         )
-        st.markdown("**Radial-distance approach**")
-        st.markdown(r"For a point $(x, y)$ at radial distance $r$ from the origin and initial angle $\phi$:")
-        st.latex(r"r = \sqrt{x^2 + y^2}")
-        st.latex(r"\cos\phi = \frac{x}{r} \qquad \sin\phi = \frac{y}{r}")
-        st.latex(r"x = r\cos\phi \qquad y = r\sin\phi")
-        st.markdown(r"After rotating by $\theta$ the new angle is $\phi + \theta$:")
-        st.latex(r"x' = r\cos(\phi+\theta) \qquad y' = r\sin(\phi+\theta)")
-        st.markdown("Expanding with the angle-addition identities:")
-        st.latex(r"\cos(\phi+\theta) = \cos\phi\cos\theta - \sin\phi\sin\theta")
-        st.latex(r"\sin(\phi+\theta) = \sin\phi\cos\theta + \cos\phi\sin\theta")
-        st.markdown(r"Substituting $x = r\cos\phi$ and $y = r\sin\phi$:")
-        st.latex(r"x' = r\cos\phi\cos\theta - r\sin\phi\sin\theta = x\cos\theta - y\sin\theta")
-        st.latex(r"y' = r\sin\phi\cos\theta + r\cos\phi\sin\theta = x\sin\theta + y\cos\theta")
-        st.success(
-            "**Final formulas:**\n\n"
-            r"$x' = x\cos\theta - y\sin\theta$" + "\n\n" +
-            r"$y' = x\sin\theta + y\cos\theta$"
-        )
-        st.info(
-            r"**Clockwise rotation** uses $-\theta$, giving:" + "\n\n" +
-            r"$x' = x\cos\theta + y\sin\theta$" + "\n\n" +
-            r"$y' = -x\sin\theta + y\cos\theta$"
+        clockwise_2d = direction.startswith("Clockwise")
+
+        # ── Rotation angle ─────────────────────────────────────────────────────
+        theta_deg = st.number_input(
+            "Rotation angle θ (degrees)",
+            value=45.0, min_value=0.0, max_value=360.0,
+            step=1.0, format="%.2f", key="rot2d_theta",
         )
 
-    # ── Computation ──────────────────────────────────────────────────────────
-    rot_rows, new_pts_2d = run_2d_rotation(points_2d, theta_deg, clockwise_2d)
+        st.divider()
 
-    # ── Results table ────────────────────────────────────────────────────────
-    st.subheader("Rotation Results")
-    theta_r = math.radians(theta_deg)
-    eff_theta = -theta_r if clockwise_2d else theta_r
-    rc1, rc2, rc3 = st.columns(3)
-    rc1.metric("θ (degrees)", f"{theta_deg}°")
-    rc2.metric("cos θ", f"{math.cos(eff_theta):.6f}")
-    rc3.metric("sin θ", f"{math.sin(eff_theta):.6f}")
+        # ── Number of points ──────────────────────────────────────────────────
+        st.subheader("Input Points")
+        n_pts = st.slider("Number of points", min_value=1, max_value=10,
+                          value=3, key="rot2d_npts")
 
-    st.dataframe(pd.DataFrame(rot_rows), hide_index=True, width='stretch')
+        points_2d = []
+        cols_per_row = min(n_pts, 5)
+        for row_start in range(0, n_pts, cols_per_row):
+            row_cols = st.columns(cols_per_row)
+            for j, col in enumerate(row_cols):
+                idx = row_start + j
+                if idx >= n_pts:
+                    break
+                label = POINT_LABELS[idx]
+                with col:
+                    st.markdown(f"**Point {label}**")
+                    sub = st.columns(2)
+                    px = sub[0].number_input(f"x", value=float(idx + 1),
+                                             step=1.0, key=f"rot2d_x{idx}",
+                                             label_visibility="visible")
+                    py = sub[1].number_input(f"y", value=float(idx + 1),
+                                             step=1.0, key=f"rot2d_y{idx}",
+                                             label_visibility="visible")
+                    points_2d.append((float(px), float(py)))
 
-    st.divider()
+        st.divider()
 
-    # ── Visualization ────────────────────────────────────────────────────────
-    st.subheader("Visualization")
-    fig_2d = draw_2d_rotation(points_2d, new_pts_2d, theta_deg, clockwise_2d)
-    if fig_2d:
-        st.pyplot(fig_2d, use_container_width=True)
-        plt.close(fig_2d)
+        # ── Formula / Derivation ───────────────────────────────────────────────
+        with st.expander("📐  Formula & Derivation", expanded=True):
+            st.markdown(
+                "<style>.katex-display{text-align:left!important;margin:0.3rem 0!important;}"
+                ".katex-display>.katex{text-align:left!important;}</style>",
+                unsafe_allow_html=True,
+            )
+            st.markdown("**Radial-distance approach**")
+            st.markdown(r"For a point $(x, y)$ at radial distance $r$ from the origin and initial angle $\phi$:")
+            st.latex(r"r = \sqrt{x^2 + y^2}")
+            st.latex(r"\cos\phi = \frac{x}{r} \qquad \sin\phi = \frac{y}{r}")
+            st.latex(r"x = r\cos\phi \qquad y = r\sin\phi")
+            st.markdown(r"After rotating by $\theta$ the new angle is $\phi + \theta$:")
+            st.latex(r"x' = r\cos(\phi+\theta) \qquad y' = r\sin(\phi+\theta)")
+            st.markdown("Expanding with the angle-addition identities:")
+            st.latex(r"\cos(\phi+\theta) = \cos\phi\cos\theta - \sin\phi\sin\theta")
+            st.latex(r"\sin(\phi+\theta) = \sin\phi\cos\theta + \cos\phi\sin\theta")
+            st.markdown(r"Substituting $x = r\cos\phi$ and $y = r\sin\phi$:")
+            st.latex(r"x' = r\cos\phi\cos\theta - r\sin\phi\sin\theta = x\cos\theta - y\sin\theta")
+            st.latex(r"y' = r\sin\phi\cos\theta + r\cos\phi\sin\theta = x\sin\theta + y\cos\theta")
+            st.success(
+                "**Final formulas:**\n\n"
+                r"$x' = x\cos\theta - y\sin\theta$" + "\n\n" +
+                r"$y' = x\sin\theta + y\cos\theta$"
+            )
+            st.info(
+                r"**Clockwise rotation** uses $-\theta$, giving:" + "\n\n" +
+                r"$x' = x\cos\theta + y\sin\theta$" + "\n\n" +
+                r"$y' = -x\sin\theta + y\cos\theta$"
+            )
 
-    st.divider()
+        # ── Computation ────────────────────────────────────────────────────────
+        rot_rows, new_pts_2d = run_2d_rotation(points_2d, theta_deg, clockwise_2d)
+
+        # ── Results table ──────────────────────────────────────────────────────
+        st.subheader("Rotation Results")
+        theta_r = math.radians(theta_deg)
+        eff_theta = -theta_r if clockwise_2d else theta_r
+        rc1, rc2, rc3 = st.columns(3)
+        rc1.metric("θ (degrees)", f"{theta_deg}°")
+        rc2.metric("cos θ", f"{math.cos(eff_theta):.6f}")
+        rc3.metric("sin θ", f"{math.sin(eff_theta):.6f}")
+
+        st.dataframe(pd.DataFrame(rot_rows), hide_index=True, width='stretch')
+
+        st.divider()
+
+        # ── Visualization ──────────────────────────────────────────────────────
+        st.subheader("Visualization")
+        fig_2d = draw_2d_rotation(points_2d, new_pts_2d, theta_deg, clockwise_2d)
+        if fig_2d:
+            st.pyplot(fig_2d, width='stretch')
+            plt.close(fig_2d)
+
+        st.divider()
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # SUB-TAB B — 2D Translation
+    # ══════════════════════════════════════════════════════════════════════════
+    with subtab_trans2d:
+        section_header("2D Translation", "tba", "tba")
+
+        # ── Shape selector ────────────────────────────────────────────────────
+        trans_shape = st.radio(
+            "Shape type",
+            options=["Polygon / Points", "Circle"],
+            horizontal=True,
+            key="trans2d_shape",
+        )
+
+        st.divider()
+
+        # ── Formula expander ──────────────────────────────────────────────────
+        with st.expander("📐  Formula", expanded=True):
+            st.markdown(
+                "<style>.katex-display{text-align:left!important;margin:0.3rem 0!important;}"
+                ".katex-display>.katex{text-align:left!important;}</style>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                "A **translation** shifts every point by the translation "
+                r"vector $(T_x,\, T_y)$:"
+            )
+            st.latex(r"x' = x + T_x")
+            st.latex(r"y' = y + T_y")
+            st.markdown("**Matrix form:**")
+            st.latex(
+                r"\begin{bmatrix} x' \\ y' \end{bmatrix} = "
+                r"\begin{bmatrix} T_x \\ T_y \end{bmatrix} + "
+                r"\begin{bmatrix} x \\ y \end{bmatrix}"
+            )
+            st.info(
+                r"The radius $r$ of a circle is **unchanged** by translation — "
+                "only its centre moves."
+            )
+
+        st.divider()
+
+        # ── Translation vector ─────────────────────────────────────────────────
+        st.subheader("Translation Vector  (Tx, Ty)")
+        tv1, tv2 = st.columns(2)
+        with tv1:
+            tx_val = st.number_input(
+                "Tx  (shift along X-axis)", value=3.0,
+                step=1.0, format="%.2f", key="trans2d_tx",
+            )
+        with tv2:
+            ty_val = st.number_input(
+                "Ty  (shift along Y-axis)", value=2.0,
+                step=1.0, format="%.2f", key="trans2d_ty",
+            )
+        tx_val, ty_val = float(tx_val), float(ty_val)
+
+        st.divider()
+
+        # ══════════════════════════════════════════════════════════════════════
+        # CIRCLE branch
+        # ══════════════════════════════════════════════════════════════════════
+        if trans_shape == "Circle":
+            st.subheader("Circle Input")
+            cti1, cti2, cti3 = st.columns(3)
+            with cti1:
+                t_cx = st.number_input("Center x", value=2.0, step=1.0,
+                                       format="%.2f", key="trans2d_cx")
+            with cti2:
+                t_cy = st.number_input("Center y", value=3.0, step=1.0,
+                                       format="%.2f", key="trans2d_cy")
+            with cti3:
+                t_r  = st.number_input("Radius r", value=4.0, min_value=0.1,
+                                       step=0.5, format="%.2f", key="trans2d_r")
+            t_cx, t_cy, t_r = float(t_cx), float(t_cy), float(t_r)
+
+            st.divider()
+
+            # Compute
+            circ_rows, new_cx, new_cy = run_2d_translation_circle(
+                t_cx, t_cy, t_r, tx_val, ty_val
+            )
+
+            # Metrics
+            st.subheader("Translation Results")
+            tm1, tm2 = st.columns(2)
+            with tm1:
+                st.markdown("**Original circle**")
+                st.markdown(
+                    f"Centre = `({t_cx}, {t_cy})` &nbsp;&nbsp; Radius = `{t_r}`"
+                )
+            with tm2:
+                st.markdown("**Translated circle**")
+                st.markdown(
+                    f"Centre = `({new_cx}, {new_cy})` &nbsp;&nbsp; "
+                    f"Radius = `{t_r}`  (unchanged)"
+                )
+
+            st.dataframe(pd.DataFrame(circ_rows), hide_index=True,
+                         width='stretch')
+
+            st.divider()
+
+            # Visualisation
+            st.subheader("Visualization")
+            fig_tc = draw_2d_translation(
+                [(t_cx, t_cy)], [(new_cx, new_cy)],
+                tx_val, ty_val, is_circle=True, radius=t_r,
+            )
+            if fig_tc:
+                st.pyplot(fig_tc, width='stretch')
+                plt.close(fig_tc)
+
+        # ══════════════════════════════════════════════════════════════════════
+        # POLYGON / POINTS branch
+        # ══════════════════════════════════════════════════════════════════════
+        else:
+            st.subheader("Input Points")
+            n_trans = st.slider("Number of points", min_value=1, max_value=10,
+                                value=3, key="trans2d_npts")
+
+            trans_pts = []
+            cols_per_row_t = min(n_trans, 5)
+            for row_start in range(0, n_trans, cols_per_row_t):
+                row_cols = st.columns(cols_per_row_t)
+                for j, col in enumerate(row_cols):
+                    idx = row_start + j
+                    if idx >= n_trans:
+                        break
+                    label = POINT_LABELS[idx]
+                    with col:
+                        st.markdown(f"**Point {label}**")
+                        sub = st.columns(2)
+                        tp_x = sub[0].number_input(
+                            "x", value=float(idx + 1), step=1.0,
+                            key=f"trans2d_x{idx}",
+                            label_visibility="visible",
+                        )
+                        tp_y = sub[1].number_input(
+                            "y", value=float(idx + 1), step=1.0,
+                            key=f"trans2d_y{idx}",
+                            label_visibility="visible",
+                        )
+                        trans_pts.append((float(tp_x), float(tp_y)))
+
+            st.divider()
+
+            # Compute
+            trans_rows, new_trans_pts = run_2d_translation(
+                trans_pts, tx_val, ty_val
+            )
+
+            # Metrics
+            st.subheader("Translation Results")
+            tpm1, tpm2, tpm3 = st.columns(3)
+            tpm1.metric("Tx", tx_val)
+            tpm2.metric("Ty", ty_val)
+            tpm3.metric("Points translated", n_trans)
+
+            st.dataframe(pd.DataFrame(trans_rows), hide_index=True,
+                         width='stretch')
+
+            st.divider()
+
+            # Visualisation
+            st.subheader("Visualization")
+            fig_tp = draw_2d_translation(
+                trans_pts, new_trans_pts, tx_val, ty_val,
+            )
+            if fig_tp:
+                st.pyplot(fig_tp, width='stretch')
+                plt.close(fig_tp)
+
+        st.divider()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1207,7 +1552,7 @@ with tab_3d:
             theta_3d, axis_3d, cw_3d
         )
         if fig_3d:
-            st.pyplot(fig_3d, use_container_width=True)
+            st.pyplot(fig_3d, width='stretch')
             plt.close(fig_3d)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1330,7 +1675,7 @@ with tab_3d:
                 abs(angle_found), axis_3d, clockwise=(angle_found < 0)
             )
             if fig_3d_fa:
-                st.pyplot(fig_3d_fa, use_container_width=True)
+                st.pyplot(fig_3d_fa, width='stretch')
                 plt.close(fig_3d_fa)
 
     st.divider()
