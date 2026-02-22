@@ -5,10 +5,45 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib.patheffects as pe
 import numpy as np
+from PIL import Image, ImageDraw
+
+
+def _make_prism_icon(size: int = 64) -> Image.Image:
+    """Generate a RGB-dispersing prism favicon as a PIL Image."""
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d   = ImageDraw.Draw(img)
+
+    s = size
+    # ── Prism triangle ───────────────────────────────────────────────────────
+    lx  = int(s * 0.14)   # left vertex x
+    rx  = int(s * 0.72)   # right apex x
+    ty  = int(s * 0.12)   # top vertex y
+    by  = int(s * 0.88)   # bottom vertex y
+    my  = s // 2           # mid y (apex)
+    tri = [(lx, ty), (lx, by), (rx, my)]
+    d.polygon(tri, fill=(210, 215, 235, 220), outline=(255, 255, 255, 255))
+
+    # ── Incoming white beam (left edge → left face mid) ───────────────────────
+    for off, alpha in [(-1, 80), (0, 255), (1, 80)]:
+        d.line([(0, my + off), (lx, my + off)],
+               fill=(255, 255, 255, alpha), width=1)
+
+    # ── Outgoing dispersed rays (apex → right edge) ───────────────────────────
+    rays = [
+        (s - 1,  int(s * 0.04), (255,  48,  48, 255)),   # red   — top
+        (s - 1,  int(s * 0.26), (255, 165,   0, 255)),   # orange
+        (s - 1,  int(s * 0.46), ( 48, 220,  48, 255)),   # green — mid
+        (s - 1,  int(s * 0.66), ( 48, 160, 255, 255)),   # blue
+        (s - 1,  int(s * 0.88), (160,  48, 255, 255)),   # violet — bottom
+    ]
+    for ex, ey, color in rays:
+        d.line([(rx, my), (ex, ey)], fill=color, width=2)
+
+    return img
 
 st.set_page_config(
     page_title="Computer Graphics Algorithms",
-    page_icon="🖥️",
+    page_icon=_make_prism_icon(),
     layout="wide",
     menu_items={
         "Get Help": "https://github.com/",
