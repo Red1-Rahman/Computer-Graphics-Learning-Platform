@@ -1,6 +1,9 @@
 import streamlit as st
 import math
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.patheffects as pe
 
 st.set_page_config(page_title="Line Drawing Algorithms", layout="wide")
 
@@ -30,6 +33,112 @@ show_bres = algo_col2.checkbox("Bresenham Algorithm",       value=True)
 show_sym  = algo_col3.checkbox("8-Way Symmetry (Bresenham)", value=False)
 
 st.divider()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Pixel Grid Visualizer
+# ══════════════════════════════════════════════════════════════════════════════
+
+def draw_pixel_grid(pixels, x1, y1, x2, y2, title="", ideal_line=True):
+    """
+    Draw a pixel-grid visualization.
+    pixels : list of (x, y) integer tuples (the lit pixels)
+    """
+    if not pixels:
+        return None
+
+    xs = [p[0] for p in pixels]
+    ys = [p[1] for p in pixels]
+    pad = 1
+    xmin, xmax = min(xs) - pad, max(xs) + pad
+    ymin, ymax = min(ys) - pad, max(ys) + pad
+
+    # Cell size in figure units; scale figure to grid size
+    cols = xmax - xmin + 1
+    rows_g = ymax - ymin + 1
+    cell = 0.42
+    fig_w = max(3.5, min(cols * cell + 1.2, 7))
+    fig_h = max(2.5, min(rows_g * cell + 1.2, 6))
+
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
+    fig.patch.set_facecolor("#0e1117")
+    ax.set_facecolor("#0e1117")
+
+    # ── grid lines ────────────────────────────────────────────────────────────
+    for gx in range(xmin, xmax + 2):
+        ax.axvline(gx - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
+    for gy in range(ymin, ymax + 2):
+        ax.axhline(gy - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
+
+    # ── ideal continuous line ─────────────────────────────────────────────────
+    if ideal_line:
+        ax.plot([x1, x2], [y1, y2],
+                color="#ffffff", linewidth=1, linestyle="--",
+                alpha=0.35, zorder=2, label="Ideal line")
+
+    # ── filled pixels ─────────────────────────────────────────────────────────
+    pixel_set = set(pixels)
+    for idx, (px, py) in enumerate(pixels):
+        is_start = (px == x1 and py == y1)
+        is_end   = (px == x2 and py == y2)
+        if is_start:
+            facecolor, edgecolor, label = "#2ecc71", "#27ae60", "Start"
+        elif is_end:
+            facecolor, edgecolor, label = "#e74c3c", "#c0392b", "End"
+        else:
+            facecolor, edgecolor, label = "#3498db", "#2980b9", None
+
+        rect = mpatches.FancyBboxPatch(
+            (px - 0.46, py - 0.46), 0.92, 0.92,
+            boxstyle="round,pad=0.04",
+            facecolor=facecolor, edgecolor=edgecolor,
+            linewidth=1.2, zorder=3
+        )
+        ax.add_patch(rect)
+
+        # coordinate label inside cell
+        ax.text(px, py - 0.02, f"({px},{py})",
+                ha="center", va="center",
+                fontsize=6.5, color="white", fontweight="bold",
+                zorder=4,
+                path_effects=[pe.withStroke(linewidth=1.5, foreground="black")])
+
+        # step index (small, top-right of cell)
+        ax.text(px + 0.35, py + 0.34, str(idx),
+                ha="right", va="top",
+                fontsize=5.5, color="#ecf0f1", alpha=0.8, zorder=4)
+
+    # ── legend ────────────────────────────────────────────────────────────────
+    legend_elements = [
+        mpatches.Patch(facecolor="#2ecc71", edgecolor="#27ae60", label=f"Start ({x1},{y1})"),
+        mpatches.Patch(facecolor="#e74c3c", edgecolor="#c0392b", label=f"End ({x2},{y2})"),
+        mpatches.Patch(facecolor="#3498db", edgecolor="#2980b9", label="Pixel"),
+    ]
+    if ideal_line:
+        legend_elements.append(
+            plt.Line2D([0], [0], color="white", linewidth=1,
+                       linestyle="--", alpha=0.5, label="Ideal line")
+        )
+    ax.legend(handles=legend_elements, loc="upper left",
+              fontsize=7, framealpha=0.3,
+              labelcolor="white", facecolor="#1a1d23")
+
+    ax.set_xlim(xmin - 0.5, xmax + 0.5)
+    ax.set_ylim(ymin - 0.5, ymax + 0.5)
+    ax.set_aspect("equal")
+    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
+    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
+    ax.set_title(title, color="#dddddd", fontsize=10, pad=8)
+    ax.tick_params(colors="#666666", labelsize=7)
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#333333")
+
+    # integer ticks only
+    ax.set_xticks(range(xmin, xmax + 1))
+    ax.set_yticks(range(ymin, ymax + 1))
+
+    plt.tight_layout()
+    return fig
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -415,6 +524,44 @@ if show_sym:
         )
         df_sym = pd.DataFrame(sym_rows)
         st.dataframe(df_sym, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Combined Grid Visualization
+# ══════════════════════════════════════════════════════════════════════════════
+if (show_dda or show_bres or show_sym) and not (x1 == x2 and y1 == y2):
+    st.header("Grid Visualization")
+
+    # collect which grids to show
+    grid_items = []  # list of (title, pixels)
+
+    if show_dda:
+        _, _, dda_rows_g = run_dda(x1, y1, x2, y2)
+        dda_pixels = [(r["x (rounded)"], r["y (rounded)"]) for r in dda_rows_g]
+        grid_items.append((f"DDA", dda_pixels))
+
+    if show_bres:
+        _, _, bres_rows_g = run_bresenham(x1, y1, x2, y2)
+        bres_pixels = ([(bres_rows_g[0]["xᵢ"], bres_rows_g[0]["yᵢ"])] +
+                       [(r["x(i+1)"], r["y(i+1)"]) for r in bres_rows_g])
+        grid_items.append(("Bresenham", bres_pixels))
+
+    if show_sym:
+        zone_g, _, _, sym_rows_g = run_8way_symmetry(x1, y1, x2, y2)
+        sym_pixels = [(r["x (actual)"], r["y (actual)"]) for r in sym_rows_g]
+        grid_items.append((f"8-Way Sym. Zone {zone_g}", sym_pixels))
+
+    if grid_items:
+        gcols = st.columns(len(grid_items))
+        for col, (title, pixels) in zip(gcols, grid_items):
+            with col:
+                st.markdown(f"**{title}**")
+                fig = draw_pixel_grid(pixels, x1, y1, x2, y2,
+                                      title=f"({x1},{y1}) → ({x2},{y2})")
+                if fig:
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
 
     st.divider()
 
