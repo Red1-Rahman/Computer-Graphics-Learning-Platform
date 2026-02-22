@@ -633,7 +633,7 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
 # TAB 2 — Circle Drawing
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_circle:
-    section_header("Midpoint Circle Algorithm", "tba", "tba")
+    section_header("Midpoint Circle Algorithm", "tba", "https://youtu.be/9JprrOeScvU?si=EWIdEU-sJaRqpDvD")
 
     st.header("Input")
     cc1, cc2, cc3 = st.columns(3)
