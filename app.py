@@ -900,39 +900,36 @@ def draw_3d_rotation(x, y, z, xp, yp, zp, theta_deg, axis, clockwise=False):
 # 3D Translation
 # ══════════════════════════════════════════════════════════════════════════════
 
-def run_3d_translation(x, y, z, tx, ty, tz):
-    """Translate point (x,y,z) by vector (tx,ty,tz)."""
-    xp = round(x + tx, 4)
-    yp = round(y + ty, 4)
-    zp = round(z + tz, 4)
-    rows = [
-        {"Component": "x'",
-         "Formula": "x' = x + Tx",
-         "Substitution": f"{x} + ({tx})",
-         "Result": xp},
-        {"Component": "y'",
-         "Formula": "y' = y + Ty",
-         "Substitution": f"{y} + ({ty})",
-         "Result": yp},
-        {"Component": "z'",
-         "Formula": "z' = z + Tz",
-         "Substitution": f"{z} + ({tz})",
-         "Result": zp},
-    ]
-    return xp, yp, zp, rows
+def run_3d_translation(points, tx, ty, tz):
+    """Translate a list of (x,y,z) points by vector (tx,ty,tz)."""
+    rows = []
+    new_points = []
+    for i, (x, y, z) in enumerate(points):
+        xp = round(x + tx, 4)
+        yp = round(y + ty, 4)
+        zp = round(z + tz, 4)
+        lbl = POINT_LABELS[i]
+        rows.append({"Point": lbl,
+                     "x": x,  "y": y,  "z": z,
+                     "Tx": tx, "Ty": ty, "Tz": tz,
+                     "x' = x+Tx": xp,
+                     "y' = y+Ty": yp,
+                     "z' = z+Tz": zp})
+        new_points.append((xp, yp, zp))
+    return new_points, rows
 
 
-def draw_3d_translation(x, y, z, xp, yp, zp, tx, ty, tz):
-    """3-D plot showing original point, translated point and shift arrow."""
+def draw_3d_translation(points, new_points, tx, ty, tz):
+    """3-D plot showing original and translated points with shift arrows."""
     from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+    all_coords = [c for pt in points + new_points for c in pt]
+    ax_len = max(max(abs(v) for v in all_coords), 1.5) * 1.35
 
     fig = plt.figure(figsize=(7, 6))
     fig.patch.set_facecolor("#0e1117")
     ax3 = fig.add_subplot(111, projection="3d")
     ax3.set_facecolor("#0e1117")
-
-    ax_len = max(abs(x), abs(y), abs(z),
-                 abs(xp), abs(yp), abs(zp), 1.5) * 1.35
 
     # Coordinate axes
     ax3.quiver(0, 0, 0, ax_len, 0, 0, color="#e74c3c", linewidth=1.2,
@@ -948,26 +945,27 @@ def draw_3d_translation(x, y, z, xp, yp, zp, tx, ty, tz):
     ax3.text(0, 0, ax_len * 1.08, "Z", color="#3498db",
              fontsize=9, fontweight="bold")
 
-    # Dashed lines from origin to each point
-    ax3.plot([0, x],  [0, y],  [0, z],  color="#3498db",
-             linewidth=1, alpha=0.4, linestyle="--")
-    ax3.plot([0, xp], [0, yp], [0, zp], color="#2ecc71",
-             linewidth=1, alpha=0.4, linestyle="--")
-
-    # Translation arrow from original to new point
-    ax3.quiver(x, y, z, xp - x, yp - y, zp - z,
-               color="#f39c12", linewidth=2, arrow_length_ratio=0.12,
-               alpha=0.9, zorder=4)
-
-    # Points
-    ax3.scatter([x],  [y],  [z],  color="#3498db", s=90,
-                edgecolors="#2980b9", linewidths=1.2, zorder=5)
-    ax3.scatter([xp], [yp], [zp], color="#2ecc71", s=90,
-                edgecolors="#27ae60", linewidths=1.2, zorder=5)
-    ax3.text(x,  y,  z,  f"  A({x},{y},{z})",
-             color="#7fb3d3", fontsize=8, fontweight="bold")
-    ax3.text(xp, yp, zp, f"  A'({xp},{yp},{zp})",
-             color="#82e0aa", fontsize=8, fontweight="bold")
+    for i, ((x, y, z), (xp, yp, zp)) in enumerate(zip(points, new_points)):
+        lbl = POINT_LABELS[i]
+        # Dashed lines from origin
+        ax3.plot([0, x],  [0, y],  [0, z],  color="#3498db",
+                 linewidth=1, alpha=0.35, linestyle="--")
+        ax3.plot([0, xp], [0, yp], [0, zp], color="#2ecc71",
+                 linewidth=1, alpha=0.35, linestyle="--")
+        # Translation arrow
+        ax3.quiver(x, y, z, xp - x, yp - y, zp - z,
+                   color="#f39c12", linewidth=1.8, arrow_length_ratio=0.12,
+                   alpha=0.9, zorder=4)
+        # Original point
+        ax3.scatter([x], [y], [z], color="#3498db", s=80,
+                    edgecolors="#2980b9", linewidths=1.2, zorder=5)
+        ax3.text(x, y, z, f"  {lbl}({x},{y},{z})",
+                 color="#7fb3d3", fontsize=8, fontweight="bold")
+        # Translated point
+        ax3.scatter([xp], [yp], [zp], color="#2ecc71", s=80,
+                    edgecolors="#27ae60", linewidths=1.2, zorder=5)
+        ax3.text(xp, yp, zp, f"  {lbl}'({xp},{yp},{zp})",
+                 color="#82e0aa", fontsize=8, fontweight="bold")
 
     ax3.set_title(
         f"3D Translation  \u2014  T = ({tx}, {ty}, {tz})",
@@ -1808,19 +1806,26 @@ with tab_3d:
 
         st.divider()
 
-        # ── Input point ───────────────────────────────────────────────────────
-        st.subheader("Input Point  A(x, y, z)")
-        ti1, ti2, ti3 = st.columns(3)
-        with ti1:
-            t3_x = st.number_input("x", value=2.0, step=1.0,
-                                   format="%.2f", key="trans3d_x")
-        with ti2:
-            t3_y = st.number_input("y", value=3.0, step=1.0,
-                                   format="%.2f", key="trans3d_y")
-        with ti3:
-            t3_z = st.number_input("z", value=4.0, step=1.0,
-                                   format="%.2f", key="trans3d_z")
-        t3_x, t3_y, t3_z = float(t3_x), float(t3_y), float(t3_z)
+        # ── Number of points ──────────────────────────────────────────────────
+        st.subheader("Input Points")
+        n_t3 = st.slider("Number of points", min_value=1, max_value=4,
+                         value=1, key="trans3d_npts")
+
+        t3_points = []
+        for idx in range(n_t3):
+            lbl = POINT_LABELS[idx]
+            st.markdown(f"**Point {lbl}**")
+            ti1, ti2, ti3 = st.columns(3)
+            with ti1:
+                px = st.number_input("x", value=float(idx + 1), step=1.0,
+                                     format="%.2f", key=f"trans3d_x{idx}")
+            with ti2:
+                py = st.number_input("y", value=float(idx + 2), step=1.0,
+                                     format="%.2f", key=f"trans3d_y{idx}")
+            with ti3:
+                pz = st.number_input("z", value=float(idx + 3), step=1.0,
+                                     format="%.2f", key=f"trans3d_z{idx}")
+            t3_points.append((float(px), float(py), float(pz)))
 
         st.divider()
 
@@ -1841,24 +1846,17 @@ with tab_3d:
         st.divider()
 
         # ── Compute ───────────────────────────────────────────────────────────
-        xp_t3, yp_t3, zp_t3, trans3_rows = run_3d_translation(
-            t3_x, t3_y, t3_z, t3_tx, t3_ty, t3_tz
+        new_t3_points, trans3_rows = run_3d_translation(
+            t3_points, t3_tx, t3_ty, t3_tz
         )
 
         # ── Results ───────────────────────────────────────────────────────────
         st.subheader("Translation Results")
-        tr1, tr2, tr3 = st.columns(3)
+        tr1, tr2, tr3, tr4 = st.columns(4)
         tr1.metric("Tx", t3_tx)
         tr2.metric("Ty", t3_ty)
         tr3.metric("Tz", t3_tz)
-
-        trc1, trc2 = st.columns(2)
-        with trc1:
-            st.markdown("**Original point**")
-            st.markdown(f"`A  = ({t3_x}, {t3_y}, {t3_z})`")
-        with trc2:
-            st.markdown("**Translated point**")
-            st.markdown(f"`A' = ({xp_t3}, {yp_t3}, {zp_t3})`")
+        tr4.metric("Points translated", n_t3)
 
         st.dataframe(pd.DataFrame(trans3_rows), hide_index=True, width='stretch')
 
@@ -1867,8 +1865,7 @@ with tab_3d:
         # ── Visualization ─────────────────────────────────────────────────────
         st.subheader("Visualization")
         fig_t3 = draw_3d_translation(
-            t3_x, t3_y, t3_z, xp_t3, yp_t3, zp_t3,
-            t3_tx, t3_ty, t3_tz
+            t3_points, new_t3_points, t3_tx, t3_ty, t3_tz
         )
         if fig_t3:
             st.pyplot(fig_t3, width='stretch')
