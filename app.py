@@ -635,6 +635,13 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
 with tab_circle:
     section_header("Midpoint Circle Algorithm", "tba", "https://youtu.be/9JprrOeScvU?si=EWIdEU-sJaRqpDvD")
 
+    st.markdown(
+        "<p><span style='color: red; font-weight: bold;'>Prerequisite:</span> This algorithm uses "
+        "<span style='color: #3498db; font-weight: bold;'>8-way symmetry</span> "
+        "to efficiently compute all 8 octant pixels from one set of coordinates.</p>",
+        unsafe_allow_html=True
+    )
+
     st.header("Input")
     cc1, cc2, cc3 = st.columns(3)
     with cc1: cx = st.number_input("Center x", value=0, step=1, key="cx")
