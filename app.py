@@ -522,7 +522,7 @@ with tab_line:
 | y increment | Δy / steps = {dy_val}/{steps_val} = {dy_val/steps_val:.4f} |
 """)
             st.subheader("Iteration Table")
-            st.dataframe(pd.DataFrame(dda_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(dda_rows), width='stretch', hide_index=True)
         st.divider()
 
     # ── Bresenham ─────────────────────────────────────────────────────────────
@@ -561,7 +561,7 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
             st.subheader("Decision Parameter Table")
             if bres_rows:
                 df_b = pd.DataFrame(bres_rows).rename(columns={"Pᵢ": "Pᵢ (decision)"})
-                st.dataframe(df_b, use_container_width=True, hide_index=True)
+                st.dataframe(df_b, width='stretch', hide_index=True)
             else:
                 st.info("No steps to display.")
         st.divider()
@@ -576,7 +576,7 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
         else:
             st.subheader("Zone Reference Table")
             st.markdown("Each zone maps into **Zone 0** so one Bresenham kernel handles all directions.")
-            st.dataframe(pd.DataFrame(ZONE_TABLE), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(ZONE_TABLE), width='stretch', hide_index=True)
             st.divider()
             dx_in = x2 - x1; dy_in = y2 - y1
             zone, dx0, dy0, sym_rows = run_8way_symmetry(x1, y1, x2, y2)
@@ -597,7 +597,7 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
 | P₀ | — | 2·Δy − Δx = **{2*dy0 - dx0}** |
 """)
             st.subheader("Computed Points (Zone 0 → Actual)")
-            st.dataframe(pd.DataFrame(sym_rows), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(sym_rows), width='stretch', hide_index=True)
         st.divider()
 
     # ── Combined grid ─────────────────────────────────────────────────────────
@@ -624,7 +624,7 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
                     fig = draw_pixel_grid(pixels, x1, y1, x2, y2,
                                           title=f"({x1},{y1}) → ({x2},{y2})")
                     if fig:
-                        st.pyplot(fig, use_container_width=True)
+                        st.pyplot(fig, width='stretch')
                         plt.close(fig)
         st.divider()
 
@@ -683,7 +683,7 @@ Loop continues while $x \leq y$.
 
     # ── Decision table ───────────────────────────────────────────────────────
     st.subheader("Decision Parameter Table")
-    st.dataframe(pd.DataFrame(circle_rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(circle_rows), width='stretch', hide_index=True)
 
     st.divider()
 
@@ -692,7 +692,7 @@ Loop continues while $x \leq y$.
     fig_c = draw_circle_grid(circle_pixels, cx, cy, float(r),
                              title=f"Midpoint Circle  center=({cx},{cy})  r={r}")
     if fig_c:
-        st.pyplot(fig_c, use_container_width=True)
+        st.pyplot(fig_c, width='stretch')
         plt.close(fig_c)
 
     st.divider()
