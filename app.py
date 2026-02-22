@@ -274,21 +274,20 @@ def run_bresenham(x1, y1, x2, y2):
 # YouTube button helper
 # ══════════════════════════════════════════════════════════════════════════════
 
-def yt_buttons(en_url, bn_url):
+def section_header(title, en_url, bn_url):
     """
-    Render a row of YouTube watch buttons.
-    Pass None or the string 'tba' for a 'To Be Added' disabled button.
+    Render a section heading with YouTube buttons aligned to the right.
+    Pass None or 'tba' for a coming-soon disabled button.
     """
     btn_base = (
         "display:inline-flex;align-items:center;gap:6px;"
-        "padding:6px 14px;border-radius:6px;font-size:0.82rem;"
-        "font-weight:600;text-decoration:none;margin-right:8px;"
+        "padding:5px 12px;border-radius:6px;font-size:0.78rem;"
+        "font-weight:600;text-decoration:none;margin-left:8px;"
     )
-    active_style  = btn_base + "background:#ff0000;color:#ffffff;"
-    disabled_style = btn_base + ("background:#555;color:#aaa;"
-                                  "cursor:not-allowed;pointer-events:none;")
+    active_style   = btn_base + "background:#ff0000;color:#ffffff;"
+    disabled_style = btn_base + "background:#444;color:#888;cursor:not-allowed;pointer-events:none;"
     yt_icon = (
-        '<svg xmlns="http://www.w3.org/2000/svg" height="14" width="14" '
+        '<svg xmlns="http://www.w3.org/2000/svg" height="13" width="13" '
         'viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">'
         '<path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6'
         'A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1'
@@ -301,20 +300,24 @@ def yt_buttons(en_url, bn_url):
         if url and url.lower() not in ("tba", "to be added"):
             return (f'<a href="{url}" target="_blank" style="{active_style}">'
                     f'{yt_icon} {label}</a>')
-        else:
-            return (f'<span style="{disabled_style}">{yt_icon} {label} — Coming Soon</span>')
+        return f'<span style="{disabled_style}">{yt_icon} {label} — Soon</span>'
 
-    html = ("<div style='margin:4px 0 12px 0'>" +
-            make_btn(en_url, "🇬🇧 English") +
-            make_btn(bn_url, "🇧🇩 Bangla") +
-            "</div>")
+    html = (
+        "<div style='display:flex;align-items:center;justify-content:space-between;"
+        "margin-bottom:0.6rem'>"
+        f"<h2 style='margin:0;padding:0'>{title}</h2>"
+        f"<div style='display:flex;align-items:center'>"
+        f"{make_btn(en_url, 'English')}"
+        f"{make_btn(bn_url, 'Bangla')}"
+        "</div></div>"
+    )
     st.markdown(html, unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 if show_dda:
-    st.header("DDA Algorithm")
-    yt_buttons(
+    section_header(
+        "DDA Algorithm",
         "https://youtu.be/W5P8GlaEOSI?si=iOWG155vbS8MGnFp",
         "https://youtu.be/0eQv0MQBu7Q?si=D-__o4SUTA5_T9BQ"
     )
@@ -359,8 +362,8 @@ if show_dda:
 # Render Bresenham
 # ══════════════════════════════════════════════════════════════════════════════
 if show_bres:
-    st.header("Bresenham Algorithm")
-    yt_buttons(
+    section_header(
+        "Bresenham Algorithm",
         "https://youtu.be/RGB-wlatStc?si=h5-m7di5ixKXk8KA",
         "https://youtu.be/BY_iG7CZBf8?si=3Or-mSdWSHo8ATwr"
     )
@@ -517,8 +520,8 @@ def run_8way_symmetry(x1, y1, x2, y2):
 # Render 8-Way Symmetry
 # ══════════════════════════════════════════════════════════════════════════════
 if show_sym:
-    st.header("8-Way Symmetry — Bresenham")
-    yt_buttons(
+    section_header(
+        "8-Way Symmetry — Bresenham",
         "tba",
         "https://youtu.be/x0Mto5Sp9Dc?si=iUObnGfJVx5DSByF"
     )
