@@ -592,6 +592,149 @@ def draw_2d_rotation(points, new_points, theta_deg, clockwise=False):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 3D Rotation
+# ══════════════════════════════════════════════════════════════════════════════
+
+def run_3d_rotation(x, y, z, theta_deg, axis, clockwise=False):
+    """Rotate point (x,y,z) by theta_deg about the given axis."""
+    theta = math.radians(theta_deg)
+    if clockwise:
+        theta = -theta
+    c = round(math.cos(theta), 6)
+    s = round(math.sin(theta), 6)
+
+    if axis == "X":
+        xp, yp, zp = x, y * c - z * s, y * s + z * c
+        rows = [
+            {"Component": "x'", "Formula": "x' = x",
+             "Substitution": f"{x}",
+             "Result": round(xp, 4)},
+            {"Component": "y'", "Formula": "y' = y·cosθ − z·sinθ",
+             "Substitution": f"({y})×({c}) − ({z})×({s})",
+             "Result": round(yp, 4)},
+            {"Component": "z'", "Formula": "z' = y·sinθ + z·cosθ",
+             "Substitution": f"({y})×({s}) + ({z})×({c})",
+             "Result": round(zp, 4)},
+        ]
+    elif axis == "Y":
+        xp, yp, zp = x * c + z * s, y, z * c - x * s
+        rows = [
+            {"Component": "x'", "Formula": "x' = x·cosθ + z·sinθ",
+             "Substitution": f"({x})×({c}) + ({z})×({s})",
+             "Result": round(xp, 4)},
+            {"Component": "y'", "Formula": "y' = y",
+             "Substitution": f"{y}",
+             "Result": round(yp, 4)},
+            {"Component": "z'", "Formula": "z' = z·cosθ − x·sinθ",
+             "Substitution": f"({z})×({c}) − ({x})×({s})",
+             "Result": round(zp, 4)},
+        ]
+    else:  # Z
+        xp, yp, zp = x * c - y * s, x * s + y * c, z
+        rows = [
+            {"Component": "x'", "Formula": "x' = x·cosθ − y·sinθ",
+             "Substitution": f"({x})×({c}) − ({y})×({s})",
+             "Result": round(xp, 4)},
+            {"Component": "y'", "Formula": "y' = x·sinθ + y·cosθ",
+             "Substitution": f"({x})×({s}) + ({y})×({c})",
+             "Result": round(yp, 4)},
+            {"Component": "z'", "Formula": "z' = z",
+             "Substitution": f"{z}",
+             "Result": round(zp, 4)},
+        ]
+    return round(xp, 4), round(yp, 4), round(zp, 4), rows, c, s
+
+
+def run_3d_find_angle(x, y, z, xp, yp, zp, axis):
+    """Recover the rotation angle from original and rotated coordinates."""
+    if axis == "X":
+        theta = math.atan2(y * zp - z * yp, y * yp + z * zp)
+    elif axis == "Y":
+        theta = math.atan2(z * xp - x * zp, x * xp + z * zp)
+    else:  # Z
+        theta = math.atan2(x * yp - y * xp, x * xp + y * yp)
+    return round(math.degrees(theta), 4)
+
+
+def draw_3d_rotation(x, y, z, xp, yp, zp, theta_deg, axis, clockwise=False):
+    """3-D plot showing original point, rotated point and rotation arc."""
+    from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+    theta_rad = math.radians(theta_deg)
+    if clockwise:
+        theta_rad = -theta_rad
+    t_vals = np.linspace(0, theta_rad, 80)
+    c_v, s_v = np.cos(t_vals), np.sin(t_vals)
+
+    if axis == "X":
+        arc_x = np.full(80, float(x))
+        arc_y = y * c_v - z * s_v
+        arc_z = y * s_v + z * c_v
+    elif axis == "Y":
+        arc_x = x * c_v + z * s_v
+        arc_y = np.full(80, float(y))
+        arc_z = z * c_v - x * s_v
+    else:
+        arc_x = x * c_v - y * s_v
+        arc_y = x * s_v + y * c_v
+        arc_z = np.full(80, float(z))
+
+    fig = plt.figure(figsize=(7, 6))
+    fig.patch.set_facecolor("#0e1117")
+    ax3 = fig.add_subplot(111, projection="3d")
+    ax3.set_facecolor("#0e1117")
+
+    ax_len = max(abs(x), abs(y), abs(z), abs(xp), abs(yp), abs(zp), 1.5) * 1.35
+
+    # Coordinate axes
+    ax3.quiver(0, 0, 0, ax_len, 0, 0, color="#e74c3c", linewidth=1.2,
+               arrow_length_ratio=0.08)
+    ax3.quiver(0, 0, 0, 0, ax_len, 0, color="#2ecc71", linewidth=1.2,
+               arrow_length_ratio=0.08)
+    ax3.quiver(0, 0, 0, 0, 0, ax_len, color="#3498db", linewidth=1.2,
+               arrow_length_ratio=0.08)
+    ax3.text(ax_len * 1.08, 0, 0, "X", color="#e74c3c", fontsize=9, fontweight="bold")
+    ax3.text(0, ax_len * 1.08, 0, "Y", color="#2ecc71", fontsize=9, fontweight="bold")
+    ax3.text(0, 0, ax_len * 1.08, "Z", color="#3498db", fontsize=9, fontweight="bold")
+
+    # Dashed radii to origin
+    ax3.plot([0, x],  [0, y],  [0, z],  color="#3498db", linewidth=1,
+             alpha=0.4, linestyle="--")
+    ax3.plot([0, xp], [0, yp], [0, zp], color="#2ecc71", linewidth=1,
+             alpha=0.4, linestyle="--")
+
+    # Rotation arc
+    ax3.plot(arc_x, arc_y, arc_z, color="#f39c12", linewidth=2, alpha=0.8, zorder=4)
+
+    # Points
+    ax3.scatter([x],  [y],  [z],  color="#3498db", s=90,
+                edgecolors="#2980b9", linewidths=1.2, zorder=5)
+    ax3.scatter([xp], [yp], [zp], color="#2ecc71", s=90,
+                edgecolors="#27ae60", linewidths=1.2, zorder=5)
+    ax3.text(x,  y,  z,  f"  A({x},{y},{z})",
+             color="#7fb3d3", fontsize=8, fontweight="bold")
+    ax3.text(xp, yp, zp, f"  A'({xp},{yp},{zp})",
+             color="#82e0aa", fontsize=8, fontweight="bold")
+
+    direction_label = "Clockwise" if clockwise else "Counter-Clockwise"
+    ax3.set_title(
+        f"3D Rotation — {axis}-axis  \u03b8={theta_deg}\u00b0  ({direction_label})",
+        color="#dddddd", fontsize=10, pad=10)
+    ax3.set_xlabel("X", color="#aaaaaa", fontsize=8)
+    ax3.set_ylabel("Y", color="#aaaaaa", fontsize=8)
+    ax3.set_zlabel("Z", color="#aaaaaa", fontsize=8)
+    ax3.tick_params(colors="#666666", labelsize=6)
+    for pane in [ax3.xaxis.pane, ax3.yaxis.pane, ax3.zaxis.pane]:
+        pane.fill = False
+        pane.set_edgecolor("#2a2d35")
+    ax3.xaxis.line.set_color("#333333")
+    ax3.yaxis.line.set_color("#333333")
+    ax3.zaxis.line.set_color("#333333")
+    plt.tight_layout()
+    return fig
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # TAB LAYOUT
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -955,16 +1098,242 @@ CUBE_SVG = """
 """
 
 with tab_3d:
-    st.markdown(
-        f"<div style='text-align:center;padding:4rem 0 2rem'>"
-        "<div style='font-size:4rem;margin-bottom:1rem'>⬢</div>"
-        "<h2 style='margin:0'>3D Transformation</h2>"
-        "<p style='color:gray;margin-top:0.5rem'>Translation · Rotation · Scaling · Projection · Homogeneous Coordinates</p>"
-        "<span style='display:inline-block;margin-top:1.5rem;padding:6px 20px;"
-        "border-radius:20px;background:#2a2a2a;color:#888;font-size:0.85rem'>Coming soon</span>"
-        "</div>",
-        unsafe_allow_html=True,
+    section_header("3D Rotation", "tba", "tba")
+
+    # ── Mode ─────────────────────────────────────────────────────────────────
+    mode_3d = st.radio(
+        "Mode",
+        options=["Find New Coordinates", "Find Rotation Angle"],
+        horizontal=True,
+        key="rot3d_mode",
     )
+
+    # ── Axis ─────────────────────────────────────────────────────────────────
+    axis_3d = st.radio(
+        "Rotation axis",
+        options=["X", "Y", "Z"],
+        horizontal=True,
+        key="rot3d_axis",
+    )
+
+    st.divider()
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # MODE 1 — Find New Coordinates
+    # ══════════════════════════════════════════════════════════════════════════
+    if mode_3d == "Find New Coordinates":
+
+        # Direction
+        dir_3d = st.radio(
+            "Rotation direction",
+            options=["Counter-Clockwise (CCW)  ↺", "Clockwise (CW)  ↻"],
+            horizontal=True,
+            key="rot3d_dir",
+        )
+        cw_3d = dir_3d.startswith("Clockwise")
+
+        # Angle
+        theta_3d = st.number_input(
+            "Rotation angle θ (degrees)",
+            value=45.0, min_value=0.0, max_value=360.0,
+            step=1.0, format="%.2f", key="rot3d_theta",
+        )
+
+        # Point input
+        st.subheader("Input Point A(x, y, z)")
+        pc1, pc2, pc3 = st.columns(3)
+        pt3_x = pc1.number_input("x", value=1.0, step=1.0, key="rot3d_x")
+        pt3_y = pc2.number_input("y", value=2.0, step=1.0, key="rot3d_y")
+        pt3_z = pc3.number_input("z", value=3.0, step=1.0, key="rot3d_z")
+        pt3_x, pt3_y, pt3_z = float(pt3_x), float(pt3_y), float(pt3_z)
+
+        st.divider()
+
+        # Formula expander
+        with st.expander("📐  Rotation Formulas", expanded=True):
+            st.markdown(
+                "<style>.katex-display{text-align:left!important;margin:0.3rem 0!important;}"
+                ".katex-display>.katex{text-align:left!important;}</style>",
+                unsafe_allow_html=True,
+            )
+            fc1, fc2, fc3 = st.columns(3)
+            with fc1:
+                st.markdown("**X-axis rotation**")
+                st.latex(r"x' = x")
+                st.latex(r"y' = y\cos\theta - z\sin\theta")
+                st.latex(r"z' = y\sin\theta + z\cos\theta")
+            with fc2:
+                st.markdown("**Y-axis rotation**")
+                st.latex(r"x' = x\cos\theta + z\sin\theta")
+                st.latex(r"y' = y")
+                st.latex(r"z' = z\cos\theta - x\sin\theta")
+            with fc3:
+                st.markdown("**Z-axis rotation**")
+                st.latex(r"x' = x\cos\theta - y\sin\theta")
+                st.latex(r"y' = x\sin\theta + y\cos\theta")
+                st.latex(r"z' = z")
+
+        # Compute
+        xp_3d, yp_3d, zp_3d, rot3_rows, cos_t3, sin_t3 = run_3d_rotation(
+            pt3_x, pt3_y, pt3_z, theta_3d, axis_3d, cw_3d
+        )
+
+        # Result metrics
+        st.subheader("Rotation Results")
+        eff_t3 = -math.radians(theta_3d) if cw_3d else math.radians(theta_3d)
+        rm1, rm2, rm3, rm4, rm5 = st.columns(5)
+        rm1.metric("θ", f"{theta_3d}°")
+        rm2.metric("Axis", axis_3d)
+        rm3.metric("cos θ", f"{math.cos(eff_t3):.6f}")
+        rm4.metric("sin θ", f"{math.sin(eff_t3):.6f}")
+        rm5.metric("Direction", "CW" if cw_3d else "CCW")
+
+        coord_c1, coord_c2 = st.columns(2)
+        with coord_c1:
+            st.markdown("**Original point**")
+            st.markdown(f"`A = ({pt3_x}, {pt3_y}, {pt3_z})`")
+        with coord_c2:
+            st.markdown("**Rotated point**")
+            st.markdown(f"`A' = ({xp_3d}, {yp_3d}, {zp_3d})`")
+
+        st.dataframe(pd.DataFrame(rot3_rows), hide_index=True, width='stretch')
+
+        st.divider()
+
+        # Visualization
+        st.subheader("Visualization")
+        fig_3d = draw_3d_rotation(
+            pt3_x, pt3_y, pt3_z, xp_3d, yp_3d, zp_3d,
+            theta_3d, axis_3d, cw_3d
+        )
+        if fig_3d:
+            st.pyplot(fig_3d, use_container_width=True)
+            plt.close(fig_3d)
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # MODE 2 — Find Rotation Angle
+    # ══════════════════════════════════════════════════════════════════════════
+    else:
+        st.subheader("Input Coordinates")
+        orig_col, new_col = st.columns(2)
+
+        with orig_col:
+            st.markdown("**Original point A(x, y, z)**")
+            fa1, fa2, fa3 = st.columns(3)
+            fa_x = fa1.number_input("x",  value=1.0, step=1.0, key="fa_x")
+            fa_y = fa2.number_input("y",  value=2.0, step=1.0, key="fa_y")
+            fa_z = fa3.number_input("z",  value=3.0, step=1.0, key="fa_z")
+
+        with new_col:
+            st.markdown("**Rotated point A'(x', y', z')**")
+            fb1, fb2, fb3 = st.columns(3)
+            fb_x = fb1.number_input("x'", value=1.0, step=1.0, key="fb_x")
+            fb_y = fb2.number_input("y'", value=-3.0, step=1.0, key="fb_y")
+            fb_z = fb3.number_input("z'", value=2.0, step=1.0, key="fb_z")
+
+        fa_x, fa_y, fa_z = float(fa_x), float(fa_y), float(fa_z)
+        fb_x, fb_y, fb_z = float(fb_x), float(fb_y), float(fb_z)
+
+        st.divider()
+
+        # Formula expander
+        with st.expander("📐  How angle is recovered", expanded=True):
+            st.markdown(
+                "<style>.katex-display{text-align:left!important;margin:0.3rem 0!important;}"
+                ".katex-display>.katex{text-align:left!important;}</style>",
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                r"Using the dot and cross product of the two vectors in the rotation plane:"
+            )
+            fc1, fc2, fc3 = st.columns(3)
+            with fc1:
+                st.markdown("**X-axis** (rotate in YZ plane)")
+                st.latex(r"\theta = \mathrm{atan2}(y z' - z y',\; y y' + z z')")
+            with fc2:
+                st.markdown("**Y-axis** (rotate in ZX plane)")
+                st.latex(r"\theta = \mathrm{atan2}(z x' - x z',\; x x' + z z')")
+            with fc3:
+                st.markdown("**Z-axis** (rotate in XY plane)")
+                st.latex(r"\theta = \mathrm{atan2}(x y' - y x',\; x x' + y y')")
+
+        # Invariant check
+        tol = 1e-6
+        invariant_ok = True
+        if axis_3d == "X" and abs(fa_x - fb_x) > tol:
+            st.warning(f"For X-axis rotation x should stay the same, but x={fa_x} and x'={fb_x}. " +
+                       "θ is computed from the Y/Z components only.")
+            invariant_ok = False
+        elif axis_3d == "Y" and abs(fa_y - fb_y) > tol:
+            st.warning(f"For Y-axis rotation y should stay the same, but y={fa_y} and y'={fb_y}. " +
+                       "θ is computed from the X/Z components only.")
+            invariant_ok = False
+        elif axis_3d == "Z" and abs(fa_z - fb_z) > tol:
+            st.warning(f"For Z-axis rotation z should stay the same, but z={fa_z} and z'={fb_z}. " +
+                       "θ is computed from the X/Y components only.")
+            invariant_ok = False
+
+        # Degenerate case
+        degen = False
+        if axis_3d == "X" and (fa_y == 0 and fa_z == 0):
+            st.error("Point lies on the X-axis — angle is indeterminate.")
+            degen = True
+        elif axis_3d == "Y" and (fa_x == 0 and fa_z == 0):
+            st.error("Point lies on the Y-axis — angle is indeterminate.")
+            degen = True
+        elif axis_3d == "Z" and (fa_x == 0 and fa_y == 0):
+            st.error("Point lies on the Z-axis — angle is indeterminate.")
+            degen = True
+
+        if not degen:
+            angle_found = run_3d_find_angle(
+                fa_x, fa_y, fa_z, fb_x, fb_y, fb_z, axis_3d
+            )
+
+            st.subheader("Result")
+            ar1, ar2, ar3 = st.columns(3)
+            ar1.metric("Rotation Axis", axis_3d)
+            ar2.metric("θ (degrees)",   f"{angle_found}°")
+            ar3.metric("Direction",
+                       "Clockwise" if angle_found < 0 else "Counter-Clockwise")
+
+            with st.expander("Step-by-step substitution"):
+                if axis_3d == "X":
+                    st.markdown(
+                        rf"$$\theta = \mathrm{{atan2}}("
+                        rf"{fa_y} \times {fb_z} - {fa_z} \times {fb_y},\ "
+                        rf"{fa_y} \times {fb_y} + {fa_z} \times {fb_z}) = "
+                        rf"\mathrm{{atan2}}({fa_y*fb_z - fa_z*fb_y:.4f},\ "
+                        rf"{fa_y*fb_y + fa_z*fb_z:.4f}) = {angle_found}°$$"
+                    )
+                elif axis_3d == "Y":
+                    st.markdown(
+                        rf"$$\theta = \mathrm{{atan2}}("
+                        rf"{fa_z} \times {fb_x} - {fa_x} \times {fb_z},\ "
+                        rf"{fa_x} \times {fb_x} + {fa_z} \times {fb_z}) = "
+                        rf"\mathrm{{atan2}}({fa_z*fb_x - fa_x*fb_z:.4f},\ "
+                        rf"{fa_x*fb_x + fa_z*fb_z:.4f}) = {angle_found}°$$"
+                    )
+                else:
+                    st.markdown(
+                        rf"$$\theta = \mathrm{{atan2}}("
+                        rf"{fa_x} \times {fb_y} - {fa_y} \times {fb_x},\ "
+                        rf"{fa_x} \times {fb_x} + {fa_y} \times {fb_y}) = "
+                        rf"\mathrm{{atan2}}({fa_x*fb_y - fa_y*fb_x:.4f},\ "
+                        rf"{fa_x*fb_x + fa_y*fb_y:.4f}) = {angle_found}°$$"
+                    )
+
+            # Draw with the recovered angle
+            st.subheader("Visualization")
+            fig_3d_fa = draw_3d_rotation(
+                fa_x, fa_y, fa_z, fb_x, fb_y, fb_z,
+                abs(angle_found), axis_3d, clockwise=(angle_found < 0)
+            )
+            if fig_3d_fa:
+                st.pyplot(fig_3d_fa, use_container_width=True)
+                plt.close(fig_3d_fa)
+
+    st.divider()
 
 
 # ── Footer ────────────────────────────────────────────────────────────────────
