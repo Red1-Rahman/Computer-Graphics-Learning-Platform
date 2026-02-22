@@ -6,7 +6,163 @@ import matplotlib.patches as mpatches
 import matplotlib.patheffects as pe
 import numpy as np
 
-st.set_page_config(page_title="Computer Graphics Algorithms", layout="wide")
+st.set_page_config(
+    page_title="Computer Graphics Algorithms",
+    page_icon="🖥️",
+    layout="wide",
+    menu_items={
+        "Get Help": "https://github.com/",
+        "Report a bug": None,
+        "About": (
+            "Interactive Computer Graphics Algorithms tool — "
+            "DDA, Bresenham, Midpoint Circle, 2D/3D Transformations."
+        ),
+    },
+)
+
+# ── Invisible SEO: inject meta tags + JSON-LD into <head> via JS ─────────────
+_SEO_HTML = """
+<script>
+(function () {
+  /* ── helper: create or update a <meta> element ── */
+  function setMeta(attrs) {
+    var key = Object.keys(attrs).find(function(k){ return k !== "content"; });
+    var sel = 'meta[' + key + '="' + attrs[key] + '"]';
+    var el  = document.querySelector(sel) || document.createElement("meta");
+    Object.keys(attrs).forEach(function(k){ el.setAttribute(k, attrs[k]); });
+    if (!el.parentNode) { document.head.appendChild(el); }
+  }
+
+  /* ── helper: set or update <link> ── */
+  function setLink(attrs) {
+    var sel = 'link[rel="' + attrs.rel + '"]';
+    var el  = document.querySelector(sel) || document.createElement("link");
+    Object.keys(attrs).forEach(function(k){ el.setAttribute(k, attrs[k]); });
+    if (!el.parentNode) { document.head.appendChild(el); }
+  }
+
+  /* ── helper: set <title> if not already meaningful ── */
+  if (document.title !== "Computer Graphics Algorithms") {
+    document.title = "Computer Graphics Algorithms";
+  }
+
+  /* ══ Standard / SEO meta tags ══════════════════════════════════════════ */
+  setMeta({ name: "description",
+            content: "Interactive step-by-step visualiser for core computer graphics algorithms: DDA line drawing, Bresenham line drawing, 8-way symmetry, Midpoint Circle algorithm, 2D rotation, 2D translation, 3D rotation, and 3D translation. Ideal for students and educators." });
+
+  setMeta({ name: "keywords",
+            content: "computer graphics algorithms, DDA algorithm, Bresenham line drawing, Bresenham algorithm, midpoint circle algorithm, 8-way symmetry, 2D rotation, 2D translation, 3D rotation, 3D translation, rasterization, pixel grid, line rasterization, circle drawing, scan conversion, transformation matrix, homogeneous coordinates, interactive visualiser, computer graphics tutorial" });
+
+  setMeta({ name: "author",        content: "Computer Graphics Algorithms" });
+  setMeta({ name: "robots",        content: "index, follow" });
+  setMeta({ name: "revisit-after", content: "7 days" });
+  setMeta({ name: "language",      content: "English" });
+  setMeta({ "http-equiv": "Content-Type",     content: "text/html; charset=UTF-8" });
+  setMeta({ "http-equiv": "Content-Language", content: "en" });
+
+  /* ══ Open Graph (Facebook / LinkedIn / Discord …) ═══════════════════════ */
+  setMeta({ property: "og:type",        content: "website" });
+  setMeta({ property: "og:title",       content: "Computer Graphics Algorithms" });
+  setMeta({ property: "og:description", content: "Interactive step-by-step visualiser for DDA, Bresenham, Midpoint Circle, and 2D/3D transformation algorithms. Perfect for CS students studying computer graphics." });
+  setMeta({ property: "og:locale",      content: "en_US" });
+  setMeta({ property: "og:site_name",   content: "Computer Graphics Algorithms" });
+
+  /* ══ Twitter Card ════════════════════════════════════════════════════════ */
+  setMeta({ name: "twitter:card",        content: "summary" });
+  setMeta({ name: "twitter:title",       content: "Computer Graphics Algorithms" });
+  setMeta({ name: "twitter:description", content: "Interactive visualiser for DDA, Bresenham, Midpoint Circle, 2D & 3D transformations. Step-by-step pixel grids and decision tables." });
+
+  /* ══ Canonical link ══════════════════════════════════════════════════════ */
+  setLink({ rel: "canonical", href: window.location.href.split("?")[0] });
+
+  /* ══ JSON-LD Structured Data ═════════════════════════════════════════════ */
+  if (!document.querySelector('script[data-seo="cga-jsonld"]')) {
+    var ldScript = document.createElement("script");
+    ldScript.type = "application/ld+json";
+    ldScript.setAttribute("data-seo", "cga-jsonld");
+    ldScript.textContent = JSON.stringify([
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Computer Graphics Algorithms",
+        "description": "Interactive step-by-step visualiser for core computer graphics algorithms including DDA line drawing, Bresenham line drawing, Midpoint Circle algorithm, 2D rotation, 2D translation, 3D rotation, and 3D translation.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Web",
+        "inLanguage": ["en", "bn"],
+        "audience": {
+          "@type": "EducationalAudience",
+          "educationalRole": "student"
+        },
+        "about": [
+          { "@type": "Thing", "name": "DDA Algorithm" },
+          { "@type": "Thing", "name": "Bresenham Line Drawing Algorithm" },
+          { "@type": "Thing", "name": "Midpoint Circle Algorithm" },
+          { "@type": "Thing", "name": "8-Way Symmetry" },
+          { "@type": "Thing", "name": "2D Rotation" },
+          { "@type": "Thing", "name": "2D Translation" },
+          { "@type": "Thing", "name": "3D Rotation" },
+          { "@type": "Thing", "name": "3D Translation" },
+          { "@type": "Thing", "name": "Rasterization" },
+          { "@type": "Thing", "name": "Scan Conversion" }
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Line Drawing",      "item": "#line-drawing" },
+          { "@type": "ListItem", "position": 2, "name": "Circle Drawing",    "item": "#circle-drawing" },
+          { "@type": "ListItem", "position": 3, "name": "2D Transformation", "item": "#2d-transformation" },
+          { "@type": "ListItem", "position": 4, "name": "3D Transformation", "item": "#3d-transformation" }
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is the DDA algorithm in computer graphics?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The Digital Differential Analyzer (DDA) is a line drawing algorithm that incrementally calculates pixel positions using floating-point arithmetic. It computes x and y increments (Δx/steps and Δy/steps) and rounds them to the nearest integer at each step."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is the Bresenham line drawing algorithm?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Bresenham's line algorithm is an efficient rasterization algorithm that uses only integer arithmetic and a decision parameter P to determine the closest pixel at each step. It avoids floating-point operations, making it faster than DDA."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is the Midpoint Circle Algorithm?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "The Midpoint Circle Algorithm (also called Bresenham's circle algorithm) draws a circle using a decision parameter and 8-way symmetry. Starting at (0, r), it increments x and uses the decision parameter to decide whether y decrements, plotting 8 symmetric points per step."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "What is 8-way symmetry in computer graphics?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "8-way symmetry divides the plane around a centre into 8 zones (octants). For line drawing, it maps any line into Zone 0 (slope 0–1), applies Bresenham in Zone 0, then inverse-transforms the result. For circles, one octant of computed points is reflected to generate all 8 octants."
+            }
+          }
+        ]
+      }
+    ]);
+    document.head.appendChild(ldScript);
+  }
+})();
+</script>
+"""
+st.markdown(_SEO_HTML, unsafe_allow_html=True)
+# ─────────────────────────────────────────────────────────────────────────────
+
 st.title("Computer Graphics Algorithms")
 
 
