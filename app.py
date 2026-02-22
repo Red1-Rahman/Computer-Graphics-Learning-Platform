@@ -14,13 +14,13 @@ st.markdown("Visualize **DDA** and **Bresenham** line drawing algorithms step by
 st.header("Input Points")
 col1, col2, col3, col4 = st.columns(4)
 with col1:
-    x1 = st.number_input("x₁ (start)", value=0, step=1)
+    x1 = st.number_input("x₁ (start)", value=1, step=1)
 with col2:
-    y1 = st.number_input("y₁ (start)", value=0, step=1)
+    y1 = st.number_input("y₁ (start)", value=1, step=1)
 with col3:
-    x2 = st.number_input("x₂ (end)", value=6, step=1)
+    x2 = st.number_input("x₂ (end)", value=2, step=1)
 with col4:
-    y2 = st.number_input("y₂ (end)", value=4, step=1)
+    y2 = st.number_input("y₂ (end)", value=7, step=1)
 
 x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
