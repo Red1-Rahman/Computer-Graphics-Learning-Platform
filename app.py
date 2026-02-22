@@ -24,9 +24,10 @@ x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 st.divider()
 
 # ── Algorithm Selection ────────────────────────────────────────────────────────
-algo_col1, algo_col2 = st.columns(2)
-show_dda = algo_col1.checkbox("DDA Algorithm", value=True)
-show_bres = algo_col2.checkbox("Bresenham Algorithm", value=True)
+algo_col1, algo_col2, algo_col3 = st.columns(3)
+show_dda  = algo_col1.checkbox("DDA Algorithm",            value=True)
+show_bres = algo_col2.checkbox("Bresenham Algorithm",       value=True)
+show_sym  = algo_col3.checkbox("8-Way Symmetry (Bresenham)", value=False)
 
 st.divider()
 
@@ -260,6 +261,162 @@ $$P_0 = 2 \\cdot \\Delta x - \\Delta y = 2 \\times {dx_abs} - {dy_abs} = {2*dx_a
             st.dataframe(df_bres, use_container_width=True, hide_index=True)
         else:
             st.info("No steps to display.")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 8-Way Symmetry helpers
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Zone table: label, slope range, transform expression, condition description
+ZONE_TABLE = [
+    {"Zone": 0, "Slope Range": "0  to  1",   "Transform (x_plot, y_plot)": "(x₀ + xᵢ,  y₀ + yᵢ)",  "Direction": "dx ≥ 0, dy ≥ 0, dx ≥ dy"},
+    {"Zone": 1, "Slope Range": "1  to  +∞",  "Transform (x_plot, y_plot)": "(x₀ + yᵢ,  y₀ + xᵢ)",  "Direction": "dx ≥ 0, dy ≥ 0, dy > dx"},
+    {"Zone": 2, "Slope Range": "−∞ to −1",   "Transform (x_plot, y_plot)": "(x₀ − yᵢ,  y₀ + xᵢ)",  "Direction": "dx < 0, dy ≥ 0, dy ≥ |dx|"},
+    {"Zone": 3, "Slope Range": "−1 to  0",   "Transform (x_plot, y_plot)": "(x₀ − xᵢ,  y₀ + yᵢ)",  "Direction": "dx < 0, dy ≥ 0, |dx| > dy"},
+    {"Zone": 4, "Slope Range": "0  to  1",   "Transform (x_plot, y_plot)": "(x₀ − xᵢ,  y₀ − yᵢ)",  "Direction": "dx ≤ 0, dy ≤ 0, |dx| ≥ |dy|"},
+    {"Zone": 5, "Slope Range": "1  to  +∞",  "Transform (x_plot, y_plot)": "(x₀ − yᵢ,  y₀ − xᵢ)",  "Direction": "dx ≤ 0, dy ≤ 0, |dy| > |dx|"},
+    {"Zone": 6, "Slope Range": "−∞ to −1",   "Transform (x_plot, y_plot)": "(x₀ + yᵢ,  y₀ − xᵢ)",  "Direction": "dx ≥ 0, dy < 0, |dy| > dx"},
+    {"Zone": 7, "Slope Range": "−1 to  0",   "Transform (x_plot, y_plot)": "(x₀ + xᵢ,  y₀ − yᵢ)",  "Direction": "dx ≥ 0, dy < 0, dx ≥ |dy|"},
+]
+
+def detect_zone(dx, dy):
+    """Return which of the 8 zones the vector (dx, dy) belongs to."""
+    if dx >= 0 and dy >= 0:
+        return 0 if dx >= dy else 1
+    elif dx < 0 and dy >= 0:
+        return 2 if dy >= -dx else 3
+    elif dx <= 0 and dy <= 0:
+        return 4 if -dx >= -dy else 5
+    else:  # dx > 0, dy < 0
+        return 7 if dx >= -dy else 6
+
+
+def to_zone0(zone, dx, dy):
+    """Transform (dx, dy) into the equivalent Zone-0 deltas (always positive, |dx0| ≥ |dy0|)."""
+    if zone == 0: return  dx,  dy
+    if zone == 1: return  dy,  dx
+    if zone == 2: return  dy, -dx
+    if zone == 3: return -dx,  dy
+    if zone == 4: return -dx, -dy
+    if zone == 5: return -dy, -dx
+    if zone == 6: return -dy,  dx
+    if zone == 7: return  dx, -dy
+
+
+def inv_transform(zone, x0, y0, xi, yi):
+    """Map a Zone-0 incremental point (xi, yi) back to actual pixel (x, y)."""
+    if zone == 0: return x0 + xi,  y0 + yi
+    if zone == 1: return x0 + yi,  y0 + xi
+    if zone == 2: return x0 - yi,  y0 + xi
+    if zone == 3: return x0 - xi,  y0 + yi
+    if zone == 4: return x0 - xi,  y0 - yi
+    if zone == 5: return x0 - yi,  y0 - xi
+    if zone == 6: return x0 + yi,  y0 - xi
+    if zone == 7: return x0 + xi,  y0 - yi
+
+
+def bresenham_zone0(dx0, dy0):
+    """
+    Run Bresenham in Zone 0 (dx0 >= dy0 >= 0).
+    Returns list of (xi, yi) incremental points starting from (0,0).
+    """
+    rows = []
+    xi, yi = 0, 0
+    P = 2 * dy0 - dx0
+    rows.append({"Step": 0, "xᵢ (z0)": xi, "yᵢ (z0)": yi})
+    for _ in range(dx0):
+        xi += 1
+        if P < 0:
+            P = P + 2 * dy0
+        else:
+            yi += 1
+            P = P + 2 * dy0 - 2 * dx0
+        rows.append({"Step": _ + 1, "xᵢ (z0)": xi, "yᵢ (z0)": yi})
+    return rows
+
+
+def run_8way_symmetry(x1, y1, x2, y2):
+    dx = x2 - x1
+    dy = y2 - y1
+    zone = detect_zone(dx, dy)
+    dx0, dy0 = to_zone0(zone, dx, dy)
+    z0_points = bresenham_zone0(dx0, dy0)
+
+    rows = []
+    for p in z0_points:
+        xi, yi = p["xᵢ (z0)"], p["yᵢ (z0)"]
+        ax, ay = inv_transform(zone, x1, y1, xi, yi)
+        rows.append({
+            "Step": p["Step"],
+            "xᵢ (zone 0)": xi,
+            "yᵢ (zone 0)": yi,
+            "x (actual)": ax,
+            "y (actual)": ay,
+        })
+    return zone, dx0, dy0, rows
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Render 8-Way Symmetry
+# ══════════════════════════════════════════════════════════════════════════════
+if show_sym:
+    st.header("8-Way Symmetry — Bresenham")
+
+    if x1 == x2 and y1 == y2:
+        st.warning("Start and end points are the same. Nothing to draw.")
+    else:
+        # ── Zone reference table ───────────────────────────────────────────────
+        st.subheader("Zone Reference Table")
+        st.markdown(
+            "Each zone maps a general line direction into **Zone 0** "
+            "(slope 0–1, first octant) so a single Bresenham kernel handles all cases."
+        )
+        df_zones = pd.DataFrame(ZONE_TABLE)
+        st.dataframe(df_zones, use_container_width=True, hide_index=True)
+
+        st.divider()
+
+        dx_in = x2 - x1
+        dy_in = y2 - y1
+
+        zone, dx0, dy0, sym_rows = run_8way_symmetry(x1, y1, x2, y2)
+
+        # ── Zone detection ─────────────────────────────────────────────────────
+        st.subheader("Zone Detection")
+        zc1, zc2, zc3 = st.columns(3)
+        zc1.metric("Δx", dx_in)
+        zc2.metric("Δy", dy_in)
+        zc3.metric("Detected Zone", f"Zone {zone}")
+
+        zone_info = ZONE_TABLE[zone]
+        st.info(
+            f"**Zone {zone}** — Slope range: {zone_info['Slope Range']}   |   "
+            f"Condition: {zone_info['Direction']}   |   "
+            f"Transform: {zone_info['Transform (x_plot, y_plot)']}"
+        )
+
+        # ── Zone-0 equivalent line ─────────────────────────────────────────────
+        with st.expander("Zone-0 Transformation Details"):
+            st.markdown(f"""
+| Property | Original | Zone-0 Equivalent |
+|----------|----------|-------------------|
+| Start point | ({x1}, {y1}) | (0, 0) |
+| End point | ({x2}, {y2}) | ({dx0}, {dy0}) |
+| Δx | {dx_in} | {dx0} |
+| Δy | {dy_in} | {dy0} |
+| Initial P₀ | — | 2·Δy − Δx = 2×{dy0} − {dx0} = **{2*dy0 - dx0}** |
+""")
+
+        # ── Computed points ────────────────────────────────────────────────────
+        st.subheader("Computed Points (Zone 0 → Actual)")
+        st.markdown(
+            f"Bresenham runs in **Zone 0** on the transformed line `(0,0)→({dx0},{dy0})`, "
+            f"then each point is mapped back to the original zone via the inverse transform: "
+            f"**{ZONE_TABLE[zone]['Transform (x_plot, y_plot)']}**"
+        )
+        df_sym = pd.DataFrame(sym_rows)
+        st.dataframe(df_sym, use_container_width=True, hide_index=True)
+
+    st.divider()
 
 # ── Footer ─────────────────────────────────────────────────────────────────────
 st.divider()
