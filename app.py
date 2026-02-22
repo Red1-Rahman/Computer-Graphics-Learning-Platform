@@ -634,7 +634,7 @@ with tab_circle:
     cc1, cc2, cc3 = st.columns(3)
     with cc1: cx = st.number_input("Center x", value=0, step=1, key="cx")
     with cc2: cy = st.number_input("Center y", value=0, step=1, key="cy")
-    with cc3: r  = st.number_input("Radius r", value=5, min_value=1, step=1, key="cr")
+    with cc3: r  = st.number_input("Radius r", value=5.0, min_value=1.0, step=0.5, format="%.2f", key="cr")
     cx, cy = int(cx), int(cy)
     r = int(r) if float(r) == int(r) else float(r)
 
