@@ -464,6 +464,127 @@ def run_midpoint_circle(cx, cy, r):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# 2D Rotation
+# ══════════════════════════════════════════════════════════════════════════════
+
+POINT_LABELS = list("ABCDEFGHIJ")
+
+
+def run_2d_rotation(points, theta_deg, clockwise=False):
+    """Rotate a list of (x,y) points by theta_deg degrees."""
+    theta = math.radians(theta_deg)
+    if clockwise:
+        theta = -theta
+    cos_t = math.cos(theta)
+    sin_t = math.sin(theta)
+    rows = []
+    new_points = []
+    for i, (x, y) in enumerate(points):
+        xp = x * cos_t - y * sin_t
+        yp = x * sin_t + y * cos_t
+        rows.append({
+            "Point": POINT_LABELS[i],
+            "x": x,
+            "y": y,
+            "cos θ": round(cos_t, 6),
+            "sin θ": round(sin_t, 6),
+            "x' = x·cosθ − y·sinθ": round(xp, 4),
+            "y' = x·sinθ + y·cosθ": round(yp, 4),
+        })
+        new_points.append((round(xp, 4), round(yp, 4)))
+    return rows, new_points
+
+
+def draw_2d_rotation(points, new_points, theta_deg, clockwise=False):
+    """Visualise original and rotated points on a dark-themed plot."""
+    if not points:
+        return None
+    all_x = [p[0] for p in points] + [p[0] for p in new_points]
+    all_y = [p[1] for p in points] + [p[1] for p in new_points]
+    span = max(max(all_x) - min(all_x), max(all_y) - min(all_y), 4)
+    pad  = span * 0.30
+    cx_c = (max(all_x) + min(all_x)) / 2
+    cy_c = (max(all_y) + min(all_y)) / 2
+    half = span / 2 + pad
+    xmin, xmax = cx_c - half, cx_c + half
+    ymin, ymax = cy_c - half, cy_c + half
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+    fig.patch.set_facecolor("#0e1117")
+    ax.set_facecolor("#0e1117")
+
+    # Axes
+    ax.axhline(0, color="#555", linewidth=0.9, zorder=1)
+    ax.axvline(0, color="#555", linewidth=0.9, zorder=1)
+    ax.grid(True, color="#1e2030", linewidth=0.6, zorder=0)
+
+    # Connect original polygon
+    if len(points) > 1:
+        ox = [p[0] for p in points] + [points[0][0]]
+        oy = [p[1] for p in points] + [points[0][1]]
+        ax.plot(ox, oy, color="#3498db", linewidth=1.4,
+                alpha=0.55, linestyle="--", zorder=2)
+        nx_ = [p[0] for p in new_points] + [new_points[0][0]]
+        ny_ = [p[1] for p in new_points] + [new_points[0][1]]
+        ax.plot(nx_, ny_, color="#2ecc71", linewidth=1.4,
+                alpha=0.55, linestyle="--", zorder=2)
+
+    # Rotation arrows
+    for (ox2, oy2), (nx2, ny2) in zip(points, new_points):
+        ax.annotate("",
+            xy=(nx2, ny2), xytext=(ox2, oy2),
+            arrowprops=dict(arrowstyle="->", color="#f39c12",
+                            lw=1.1, alpha=0.55),
+            zorder=3)
+
+    # Original points
+    for i, (px, py) in enumerate(points):
+        ax.scatter(px, py, color="#3498db", s=80, zorder=5,
+                   edgecolors="#2980b9", linewidths=1.2)
+        ax.text(px + 0.06 * span, py + 0.06 * span,
+                f"{POINT_LABELS[i]}({px}, {py})",
+                color="#7fb3d3", fontsize=8, fontweight="bold", zorder=6,
+                path_effects=[pe.withStroke(linewidth=1.8,
+                                            foreground="#0e1117")])
+
+    # Rotated points
+    for i, (px, py) in enumerate(new_points):
+        ax.scatter(px, py, color="#2ecc71", s=80, zorder=5,
+                   edgecolors="#27ae60", linewidths=1.2)
+        ax.text(px + 0.06 * span, py + 0.06 * span,
+                f"{POINT_LABELS[i]}'({px}, {py})",
+                color="#82e0aa", fontsize=8, fontweight="bold", zorder=6,
+                path_effects=[pe.withStroke(linewidth=1.8,
+                                            foreground="#0e1117")])
+
+    direction_str = "CW" if clockwise else "CCW"
+    legend_elements = [
+        mpatches.Patch(facecolor="#3498db", edgecolor="#2980b9",
+                       label="Original points"),
+        mpatches.Patch(facecolor="#2ecc71", edgecolor="#27ae60",
+                       label=f"Rotated points ({direction_str} {theta_deg}\u00b0)"),
+        plt.Line2D([0], [0], color="#f39c12", linewidth=1.5,
+                   marker=">", markersize=6, label="Rotation path"),
+    ]
+    ax.legend(handles=legend_elements, loc="upper left", fontsize=7,
+              framealpha=0.3, labelcolor="white", facecolor="#1a1d23")
+
+    ax.set_xlim(xmin, xmax)
+    ax.set_ylim(ymin, ymax)
+    ax.set_aspect("equal")
+    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
+    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
+    direction_label = "Clockwise" if clockwise else "Counter-Clockwise"
+    ax.set_title(f"2D Rotation  \u2014  \u03b8 = {theta_deg}\u00b0  ({direction_label})",
+                 color="#dddddd", fontsize=10, pad=8)
+    ax.tick_params(colors="#666666", labelsize=7)
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#333333")
+    plt.tight_layout()
+    return fig
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # TAB LAYOUT
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -702,16 +823,109 @@ Loop continues while $x \leq y$.
 # TAB 3 — 2D Transformation
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_2d:
-    st.markdown(
-        "<div style='text-align:center;padding:4rem 0 2rem'>"
-        "<div style='font-size:4rem;margin-bottom:1rem'>⊡</div>"
-        "<h2 style='margin:0'>2D Transformation</h2>"
-        "<p style='color:gray;margin-top:0.5rem'>Translation · Rotation · Scaling · Shearing · Reflection</p>"
-        "<span style='display:inline-block;margin-top:1.5rem;padding:6px 20px;"
-        "border-radius:20px;background:#2a2a2a;color:#888;font-size:0.85rem'>Coming soon</span>"
-        "</div>",
-        unsafe_allow_html=True,
+    section_header("2D Rotation", "tba", "tba")
+
+    # ── Direction toggle ─────────────────────────────────────────────────────
+    direction = st.radio(
+        "Rotation direction",
+        options=["Counter-Clockwise (CCW)  ↺", "Clockwise (CW)  ↻"],
+        horizontal=True,
+        key="rot2d_dir",
     )
+    clockwise_2d = direction.startswith("Clockwise")
+
+    # ── Rotation angle ────────────────────────────────────────────────────────
+    theta_deg = st.number_input(
+        "Rotation angle θ (degrees)",
+        value=45.0, min_value=0.0, max_value=360.0,
+        step=1.0, format="%.2f", key="rot2d_theta",
+    )
+
+    st.divider()
+
+    # ── Number of points ─────────────────────────────────────────────────────
+    st.subheader("Input Points")
+    n_pts = st.slider("Number of points", min_value=1, max_value=10,
+                      value=3, key="rot2d_npts")
+
+    # Build grid of input fields (up to 5 columns per row)
+    points_2d = []
+    cols_per_row = min(n_pts, 5)
+    for row_start in range(0, n_pts, cols_per_row):
+        row_cols = st.columns(cols_per_row)
+        for j, col in enumerate(row_cols):
+            idx = row_start + j
+            if idx >= n_pts:
+                break
+            label = POINT_LABELS[idx]
+            with col:
+                st.markdown(f"**Point {label}**")
+                sub = st.columns(2)
+                px = sub[0].number_input(f"x", value=float(idx + 1),
+                                         step=1.0, key=f"rot2d_x{idx}",
+                                         label_visibility="visible")
+                py = sub[1].number_input(f"y", value=float(idx + 1),
+                                         step=1.0, key=f"rot2d_y{idx}",
+                                         label_visibility="visible")
+                points_2d.append((float(px), float(py)))
+
+    st.divider()
+
+    # ── Formula / Derivation ─────────────────────────────────────────────────
+    with st.expander("📐  Formula & Derivation", expanded=True):
+        st.markdown(
+            "<style>.katex-display{text-align:left!important;margin:0.3rem 0!important;}"
+            ".katex-display>.katex{text-align:left!important;}</style>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("**Radial-distance approach**")
+        st.markdown(r"For a point $(x, y)$ at radial distance $r$ from the origin and initial angle $\phi$:")
+        st.latex(r"r = \sqrt{x^2 + y^2}")
+        st.latex(r"\cos\phi = \frac{x}{r} \qquad \sin\phi = \frac{y}{r}")
+        st.latex(r"x = r\cos\phi \qquad y = r\sin\phi")
+        st.markdown(r"After rotating by $\theta$ the new angle is $\phi + \theta$:")
+        st.latex(r"x' = r\cos(\phi+\theta) \qquad y' = r\sin(\phi+\theta)")
+        st.markdown("Expanding with the angle-addition identities:")
+        st.latex(r"\cos(\phi+\theta) = \cos\phi\cos\theta - \sin\phi\sin\theta")
+        st.latex(r"\sin(\phi+\theta) = \sin\phi\cos\theta + \cos\phi\sin\theta")
+        st.markdown(r"Substituting $x = r\cos\phi$ and $y = r\sin\phi$:")
+        st.latex(r"x' = r\cos\phi\cos\theta - r\sin\phi\sin\theta = x\cos\theta - y\sin\theta")
+        st.latex(r"y' = r\sin\phi\cos\theta + r\cos\phi\sin\theta = x\sin\theta + y\cos\theta")
+        st.success(
+            "**Final formulas:**\n\n"
+            r"$x' = x\cos\theta - y\sin\theta$" + "\n\n" +
+            r"$y' = x\sin\theta + y\cos\theta$"
+        )
+        st.info(
+            r"**Clockwise rotation** uses $-\theta$, giving:" + "\n\n" +
+            r"$x' = x\cos\theta + y\sin\theta$" + "\n\n" +
+            r"$y' = -x\sin\theta + y\cos\theta$"
+        )
+
+    # ── Computation ──────────────────────────────────────────────────────────
+    rot_rows, new_pts_2d = run_2d_rotation(points_2d, theta_deg, clockwise_2d)
+
+    # ── Results table ────────────────────────────────────────────────────────
+    st.subheader("Rotation Results")
+    theta_r = math.radians(theta_deg)
+    eff_theta = -theta_r if clockwise_2d else theta_r
+    rc1, rc2, rc3 = st.columns(3)
+    rc1.metric("θ (degrees)", f"{theta_deg}°")
+    rc2.metric("cos θ", f"{math.cos(eff_theta):.6f}")
+    rc3.metric("sin θ", f"{math.sin(eff_theta):.6f}")
+
+    st.dataframe(pd.DataFrame(rot_rows), hide_index=True, width='stretch')
+
+    st.divider()
+
+    # ── Visualization ────────────────────────────────────────────────────────
+    st.subheader("Visualization")
+    fig_2d = draw_2d_rotation(points_2d, new_pts_2d, theta_deg, clockwise_2d)
+    if fig_2d:
+        st.pyplot(fig_2d, use_container_width=True)
+        plt.close(fig_2d)
+
+    st.divider()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
