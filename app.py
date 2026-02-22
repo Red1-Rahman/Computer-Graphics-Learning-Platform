@@ -467,7 +467,12 @@ def run_midpoint_circle(cx, cy, r):
 # TAB LAYOUT
 # ══════════════════════════════════════════════════════════════════════════════
 
-tab_line, tab_circle = st.tabs(["📏  Line Drawing", "⭕  Circle Drawing"])
+tab_line, tab_circle, tab_2d, tab_3d = st.tabs([
+    "╱  Line Drawing",
+    "◯  Circle Drawing",
+    "⊡  2D Transformation",
+    "⬢  3D Transformation",
+])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -684,6 +689,54 @@ Loop continues while $x \leq y$.
         plt.close(fig_c)
 
     st.divider()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 3 — 2D Transformation
+# ─────────────────────────────────────────────────────────────────────────────
+with tab_2d:
+    st.markdown(
+        "<div style='text-align:center;padding:4rem 0 2rem'>"
+        "<div style='font-size:4rem;margin-bottom:1rem'>⊡</div>"
+        "<h2 style='margin:0'>2D Transformation</h2>"
+        "<p style='color:gray;margin-top:0.5rem'>Translation · Rotation · Scaling · Shearing · Reflection</p>"
+        "<span style='display:inline-block;margin-top:1.5rem;padding:6px 20px;"
+        "border-radius:20px;background:#2a2a2a;color:#888;font-size:0.85rem'>Coming soon</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 4 — 3D Transformation
+# ─────────────────────────────────────────────────────────────────────────────
+CUBE_SVG = """
+<svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72"
+     fill="none" stroke="#aaaaaa" stroke-width="2" stroke-linejoin="round">
+  <!-- front face -->
+  <polygon points="36,42 14,30 14,12 36,24" fill="#1a1d23" stroke="#aaaaaa"/>
+  <polygon points="36,42 58,30 58,12 36,24" fill="#141618" stroke="#aaaaaa"/>
+  <polygon points="36,6  14,12 36,24 58,12"  fill="#22262e" stroke="#aaaaaa"/>
+  <!-- 12 edges -->
+  <!-- bottom face edges (hidden but drawn for wireframe) -->
+  <line x1="14" y1="30" x2="36" y2="42"/>
+  <line x1="58" y1="30" x2="36" y2="42"/>
+  <line x1="14" y1="30" x2="36" y2="18"/>
+  <line x1="58" y1="30" x2="36" y2="18"/>
+</svg>
+"""
+
+with tab_3d:
+    st.markdown(
+        f"<div style='text-align:center;padding:4rem 0 2rem'>"
+        "<div style='font-size:4rem;margin-bottom:1rem'>⬢</div>"
+        "<h2 style='margin:0'>3D Transformation</h2>"
+        "<p style='color:gray;margin-top:0.5rem'>Translation · Rotation · Scaling · Projection · Homogeneous Coordinates</p>"
+        "<span style='display:inline-block;margin-top:1.5rem;padding:6px 20px;"
+        "border-radius:20px;background:#2a2a2a;color:#888;font-size:0.85rem'>Coming soon</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 # ── Footer ────────────────────────────────────────────────────────────────────
