@@ -271,8 +271,53 @@ def run_bresenham(x1, y1, x2, y2):
 # ══════════════════════════════════════════════════════════════════════════════
 # Render DDA
 # ══════════════════════════════════════════════════════════════════════════════
+# YouTube button helper
+# ══════════════════════════════════════════════════════════════════════════════
+
+def yt_buttons(en_url, bn_url):
+    """
+    Render a row of YouTube watch buttons.
+    Pass None or the string 'tba' for a 'To Be Added' disabled button.
+    """
+    btn_base = (
+        "display:inline-flex;align-items:center;gap:6px;"
+        "padding:6px 14px;border-radius:6px;font-size:0.82rem;"
+        "font-weight:600;text-decoration:none;margin-right:8px;"
+    )
+    active_style  = btn_base + "background:#ff0000;color:#ffffff;"
+    disabled_style = btn_base + ("background:#555;color:#aaa;"
+                                  "cursor:not-allowed;pointer-events:none;")
+    yt_icon = (
+        '<svg xmlns="http://www.w3.org/2000/svg" height="14" width="14" '
+        'viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0">'
+        '<path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6'
+        'A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1'
+        'c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1A31.3 31.3 0 0 0 24 12'
+        'a31.3 31.3 0 0 0-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/>'
+        '</svg>'
+    )
+
+    def make_btn(url, label):
+        if url and url.lower() not in ("tba", "to be added"):
+            return (f'<a href="{url}" target="_blank" style="{active_style}">'
+                    f'{yt_icon} {label}</a>')
+        else:
+            return (f'<span style="{disabled_style}">{yt_icon} {label} — Coming Soon</span>')
+
+    html = ("<div style='margin:4px 0 12px 0'>" +
+            make_btn(en_url, "🇬🇧 English") +
+            make_btn(bn_url, "🇧🇩 Bangla") +
+            "</div>")
+    st.markdown(html, unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 if show_dda:
     st.header("DDA Algorithm")
+    yt_buttons(
+        "https://youtu.be/W5P8GlaEOSI?si=iOWG155vbS8MGnFp",
+        "https://youtu.be/0eQv0MQBu7Q?si=D-__o4SUTA5_T9BQ"
+    )
 
     if x1 == x2 and y1 == y2:
         st.warning("Start and end points are the same. Nothing to draw.")
@@ -315,6 +360,10 @@ if show_dda:
 # ══════════════════════════════════════════════════════════════════════════════
 if show_bres:
     st.header("Bresenham Algorithm")
+    yt_buttons(
+        "https://youtu.be/RGB-wlatStc?si=h5-m7di5ixKXk8KA",
+        "https://youtu.be/BY_iG7CZBf8?si=3Or-mSdWSHo8ATwr"
+    )
 
     if x1 == x2 and y1 == y2:
         st.warning("Start and end points are the same. Nothing to draw.")
@@ -469,6 +518,10 @@ def run_8way_symmetry(x1, y1, x2, y2):
 # ══════════════════════════════════════════════════════════════════════════════
 if show_sym:
     st.header("8-Way Symmetry — Bresenham")
+    yt_buttons(
+        "tba",
+        "https://youtu.be/x0Mto5Sp9Dc?si=iUObnGfJVx5DSByF"
+    )
 
     if x1 == x2 and y1 == y2:
         st.warning("Start and end points are the same. Nothing to draw.")
