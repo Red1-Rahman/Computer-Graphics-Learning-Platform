@@ -1,5 +1,6 @@
 import streamlit as st
 import math
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -205,115 +206,88 @@ st.title("Computer Graphics Algorithms")
 # Pixel Grid Visualizer
 # ══════════════════════════════════════════════════════════════════════════════
 
-def draw_pixel_grid(pixels, x1, y1, x2, y2, title="", ideal_line=True):
-    """
-    Draw a pixel-grid visualization.
-    pixels : list of (x, y) integer tuples (the lit pixels)
-    """
+def _canvas_pixel_grid(pixels, x1, y1, x2, y2, title="", ideal_line=True):
+    """Return (html, height) for a client-side Canvas pixel-grid."""
     if not pixels:
-        return None
-
+        return None, 0
     xs = [p[0] for p in pixels]
     ys = [p[1] for p in pixels]
     pad = 1
     xmin, xmax = min(xs) - pad, max(xs) + pad
     ymin, ymax = min(ys) - pad, max(ys) + pad
-
-    # Cell size in figure units; scale figure to grid size
     cols = xmax - xmin + 1
-    rows_g = ymax - ymin + 1
-    cell = 0.42
-    fig_w = max(3.5, min(cols * cell + 1.2, 7))
-    fig_h = max(2.5, min(rows_g * cell + 1.2, 6))
-
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#0e1117")
-
-    # ── grid lines ────────────────────────────────────────────────────────────
-    for gx in range(xmin, xmax + 2):
-        ax.axvline(gx - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
-    for gy in range(ymin, ymax + 2):
-        ax.axhline(gy - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
-
-    # ── ideal continuous line ─────────────────────────────────────────────────
-    if ideal_line:
-        ax.plot([x1, x2], [y1, y2],
-                color="#ffffff", linewidth=1, linestyle="--",
-                alpha=0.35, zorder=2, label="Ideal line")
-
-    # ── filled pixels ─────────────────────────────────────────────────────────
-    pixel_set = set(pixels)
-    for idx, (px, py) in enumerate(pixels):
-        is_start = (px == x1 and py == y1)
-        is_end   = (px == x2 and py == y2)
-        if is_start:
-            facecolor, edgecolor, label = "#2ecc71", "#27ae60", "Start"
-        elif is_end:
-            facecolor, edgecolor, label = "#e74c3c", "#c0392b", "End"
-        else:
-            facecolor, edgecolor, label = "#3498db", "#2980b9", None
-
-        rect = mpatches.FancyBboxPatch(
-            (px - 0.46, py - 0.46), 0.92, 0.92,
-            boxstyle="round,pad=0.04",
-            facecolor=facecolor, edgecolor=edgecolor,
-            linewidth=1.2, zorder=3
-        )
-        ax.add_patch(rect)
-
-        # coordinate label inside cell
-        ax.text(px, py - 0.02, f"({px},{py})",
-                ha="center", va="center",
-                fontsize=6.5, color="white", fontweight="bold",
-                zorder=4,
-                path_effects=[pe.withStroke(linewidth=1.5, foreground="black")])
-
-        # step index (small, top-right of cell)
-        ax.text(px + 0.35, py + 0.34, str(idx),
-                ha="right", va="top",
-                fontsize=5.5, color="#ecf0f1", alpha=0.8, zorder=4)
-
-    # ── legend ────────────────────────────────────────────────────────────────
-    legend_elements = [
-        mpatches.Patch(facecolor="#2ecc71", edgecolor="#27ae60", label=f"Start ({x1},{y1})"),
-        mpatches.Patch(facecolor="#e74c3c", edgecolor="#c0392b", label=f"End ({x2},{y2})"),
-        mpatches.Patch(facecolor="#3498db", edgecolor="#2980b9", label="Pixel"),
-    ]
-    if ideal_line:
-        legend_elements.append(
-            plt.Line2D([0], [0], color="white", linewidth=1,
-                       linestyle="--", alpha=0.5, label="Ideal line")
-        )
-    ax.legend(handles=legend_elements, loc="upper left",
-              fontsize=7, framealpha=0.3,
-              labelcolor="white", facecolor="#1a1d23")
-
-    ax.set_xlim(xmin - 0.5, xmax + 0.5)
-    ax.set_ylim(ymin - 0.5, ymax + 0.5)
-    ax.set_aspect("equal")
-    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
-    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
-    ax.set_title(title, color="#dddddd", fontsize=10, pad=8)
-    ax.tick_params(colors="#666666", labelsize=7)
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#333333")
-
-    # integer ticks only
-    ax.set_xticks(range(xmin, xmax + 1))
-    ax.set_yticks(range(ymin, ymax + 1))
-
-    plt.tight_layout()
-    return fig
-
+    rows_n = ymax - ymin + 1
+    data_json = json.dumps({
+        "pixels": pixels, "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+        "xmin": xmin, "xmax": xmax, "ymin": ymin, "ymax": ymax,
+        "cols": cols, "rows": rows_n, "title": title, "idealLine": ideal_line,
+    })
+    est_h = max(280, rows_n * 48 + 155)
+    js = """(function(){
+var D=__DATA__;
+var cv=document.getElementById('cv'),c=cv.getContext('2d');
+var dpr=window.devicePixelRatio||1;
+var cW=Math.min(window.innerWidth-10,700);
+var M={t:35,r:15,b:40,l:45};
+var cs=Math.min(Math.max(25,(cW-M.l-M.r)/D.cols),60);
+var pW=D.cols*cs,pH=D.rows*cs,lgH=50;
+var W=pW+M.l+M.r,H=pH+M.t+M.b+lgH;
+cv.width=W*dpr;cv.height=H*dpr;
+cv.style.width=W+'px';cv.style.height=H+'px';cv.style.display='block';
+c.scale(dpr,dpr);
+function mX(v){return M.l+(v-D.xmin+0.5)*cs;}
+function mY(v){return M.t+(D.ymax-v+0.5)*cs;}
+c.fillStyle='#0e1117';c.fillRect(0,0,W,H);
+c.strokeStyle='#2a2d35';c.lineWidth=0.6;
+for(var gx=D.xmin;gx<=D.xmax+1;gx++){var x=M.l+(gx-D.xmin)*cs;c.beginPath();c.moveTo(x,M.t);c.lineTo(x,M.t+pH);c.stroke();}
+for(var gy=D.ymin;gy<=D.ymax+1;gy++){var y=M.t+(D.ymax-gy+1)*cs;c.beginPath();c.moveTo(M.l,y);c.lineTo(M.l+pW,y);c.stroke();}
+if(D.idealLine){c.save();c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=1;c.setLineDash([5,4]);c.beginPath();c.moveTo(mX(D.x1),mY(D.y1));c.lineTo(mX(D.x2),mY(D.y2));c.stroke();c.restore();}
+c.strokeStyle='#333';c.lineWidth=1;c.strokeRect(M.l,M.t,pW,pH);
+var fs=Math.max(7,Math.min(cs*0.155,12)),ss=Math.max(6,Math.min(cs*0.13,10));
+for(var i=0;i<D.pixels.length;i++){
+var px=D.pixels[i][0],py=D.pixels[i][1];
+var isS=px===D.x1&&py===D.y1,isE=px===D.x2&&py===D.y2;
+var fc=isS?'#2ecc71':isE?'#e74c3c':'#3498db',ec=isS?'#27ae60':isE?'#c0392b':'#2980b9';
+var rx=mX(px)-cs*0.46,ry=mY(py)-cs*0.46,rw=cs*0.92,rad=Math.max(2,cs*0.05);
+c.fillStyle=fc;c.beginPath();c.roundRect(rx,ry,rw,rw,rad);c.fill();
+c.strokeStyle=ec;c.lineWidth=1.2;c.stroke();
+c.font='bold '+fs+'px sans-serif';c.textAlign='center';c.textBaseline='middle';
+c.strokeStyle='black';c.lineWidth=2;c.strokeText('('+px+','+py+')',mX(px),mY(py));
+c.fillStyle='white';c.fillText('('+px+','+py+')',mX(px),mY(py));
+c.fillStyle='rgba(236,240,241,0.8)';c.font=ss+'px sans-serif';c.textAlign='right';c.textBaseline='top';
+c.fillText(String(i),mX(px)+cs*0.35,mY(py)-cs*0.34);
+}
+c.fillStyle='#666';c.font='7px sans-serif';c.textAlign='center';c.textBaseline='top';
+for(var tx=D.xmin;tx<=D.xmax;tx++)c.fillText(String(tx),mX(tx),M.t+pH+4);
+c.textAlign='right';c.textBaseline='middle';
+for(var ty=D.ymin;ty<=D.ymax;ty++)c.fillText(String(ty),M.l-4,mY(ty));
+c.fillStyle='#aaa';c.font='9px sans-serif';c.textAlign='center';c.textBaseline='top';
+c.fillText('x',M.l+pW/2,M.t+pH+20);
+c.save();c.translate(10,M.t+pH/2);c.rotate(-Math.PI/2);c.textAlign='center';c.textBaseline='middle';c.fillText('y',0,0);c.restore();
+if(D.title){c.fillStyle='#ddd';c.font='bold 10px sans-serif';c.textAlign='center';c.textBaseline='top';c.fillText(D.title,M.l+pW/2,6);}
+var ly=M.t+pH+M.b-2;
+var items=[{c:'#2ecc71',l:'Start ('+D.x1+','+D.y1+')'},{c:'#e74c3c',l:'End ('+D.x2+','+D.y2+')'},{c:'#3498db',l:'Pixel'}];
+if(D.idealLine)items.push({c:null,l:'Ideal line',d:1});
+c.font='7px sans-serif';var tw=14;items.forEach(function(it){tw+=c.measureText(it.l).width+22;});
+c.fillStyle='rgba(26,29,35,0.85)';c.fillRect(M.l,ly,Math.min(tw,pW),22);
+c.strokeStyle='#333';c.lineWidth=0.5;c.strokeRect(M.l,ly,Math.min(tw,pW),22);
+var lx=M.l+6;items.forEach(function(it){
+if(it.d){c.save();c.strokeStyle='rgba(255,255,255,0.5)';c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.moveTo(lx,ly+11);c.lineTo(lx+10,ly+11);c.stroke();c.restore();}
+else{c.fillStyle=it.c;c.fillRect(lx,ly+5,10,12);}
+lx+=14;c.fillStyle='white';c.font='7px sans-serif';c.textAlign='left';c.textBaseline='middle';
+c.fillText(it.l,lx,ly+11);lx+=c.measureText(it.l).width+8;});
+})();""".replace("__DATA__", data_json)
+    html = '<div><canvas id="cv"></canvas></div><script>' + js + '</script>'
+    return html, est_h
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Circle Grid Visualizer
 # ══════════════════════════════════════════════════════════════════════════════
 
-def draw_circle_grid(pixels, cx, cy, r, title=""):
+def _canvas_circle_grid(pixels, cx, cy, r, title=""):
+    """Return (html, height) for a client-side Canvas circle-grid."""
     if not pixels:
-        return None
+        return None, 0
     xs = [p[0] for p in pixels]
     ys = [p[1] for p in pixels]
     pad = 1
@@ -323,55 +297,71 @@ def draw_circle_grid(pixels, cx, cy, r, title=""):
     ymax = max(ys + [cy]) + pad
     cols_n = xmax - xmin + 1
     rows_n = ymax - ymin + 1
-    cell   = 0.42
-    fig_w  = max(4, min(cols_n * cell + 1.2, 8))
-    fig_h  = max(4, min(rows_n * cell + 1.2, 8))
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#0e1117")
-    for gx in range(xmin, xmax + 2):
-        ax.axvline(gx - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
-    for gy in range(ymin, ymax + 2):
-        ax.axhline(gy - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
-    theta = np.linspace(0, 2 * np.pi, 360)
-    ax.plot(cx + r * np.cos(theta), cy + r * np.sin(theta),
-            color="#ffffff", linewidth=1, linestyle="--", alpha=0.3,
-            zorder=2, label="Ideal circle")
-    ax.plot(cx, cy, marker="+", color="#f1c40f", markersize=8,
-            markeredgewidth=1.5, zorder=5)
-    for idx, (px, py) in enumerate(pixels):
-        rect = mpatches.FancyBboxPatch(
-            (px - 0.46, py - 0.46), 0.92, 0.92,
-            boxstyle="round,pad=0.04",
-            facecolor="#9b59b6", edgecolor="#8e44ad", linewidth=1.2, zorder=3)
-        ax.add_patch(rect)
-        ax.text(px, py - 0.02, f"({px},{py})", ha="center", va="center",
-                fontsize=5.8, color="white", fontweight="bold", zorder=4,
-                path_effects=[pe.withStroke(linewidth=1.5, foreground="black")])
-        ax.text(px + 0.35, py + 0.34, str(idx + 1), ha="right", va="top",
-                fontsize=5, color="#ecf0f1", alpha=0.8, zorder=4)
-    legend_elements = [
-        mpatches.Patch(facecolor="#9b59b6", edgecolor="#8e44ad", label="Pixel"),
-        plt.Line2D([0], [0], color="#f1c40f", marker="+", markersize=8,
-                   linewidth=0, label=f"Center ({cx},{cy})"),
-        plt.Line2D([0], [0], color="white", linewidth=1,
-                   linestyle="--", alpha=0.5, label="Ideal circle"),
-    ]
-    ax.legend(handles=legend_elements, loc="upper left", fontsize=7,
-              framealpha=0.3, labelcolor="white", facecolor="#1a1d23")
-    ax.set_xlim(xmin - 0.5, xmax + 0.5)
-    ax.set_ylim(ymin - 0.5, ymax + 0.5)
-    ax.set_aspect("equal")
-    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
-    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
-    ax.set_title(title, color="#dddddd", fontsize=10, pad=8)
-    ax.tick_params(colors="#666666", labelsize=7)
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#333333")
-    ax.set_xticks(range(xmin, xmax + 1))
-    ax.set_yticks(range(ymin, ymax + 1))
-    plt.tight_layout()
-    return fig
+    data_json = json.dumps({
+        "pixels": pixels, "cx": cx, "cy": cy, "r": float(r),
+        "xmin": xmin, "xmax": xmax, "ymin": ymin, "ymax": ymax,
+        "cols": cols_n, "rows": rows_n, "title": title,
+    })
+    est_h = max(350, rows_n * 48 + 155)
+    js = """(function(){
+var D=__DATA__;
+var cv=document.getElementById('cv'),c=cv.getContext('2d');
+var dpr=window.devicePixelRatio||1;
+var cW=Math.min(window.innerWidth-10,800);
+var M={t:35,r:15,b:40,l:45};
+var cs=Math.min(Math.max(22,(cW-M.l-M.r)/D.cols),55);
+var pW=D.cols*cs,pH=D.rows*cs,lgH=50;
+var W=pW+M.l+M.r,H=pH+M.t+M.b+lgH;
+cv.width=W*dpr;cv.height=H*dpr;
+cv.style.width=W+'px';cv.style.height=H+'px';cv.style.display='block';
+c.scale(dpr,dpr);
+function mX(v){return M.l+(v-D.xmin+0.5)*cs;}
+function mY(v){return M.t+(D.ymax-v+0.5)*cs;}
+c.fillStyle='#0e1117';c.fillRect(0,0,W,H);
+c.strokeStyle='#2a2d35';c.lineWidth=0.6;
+for(var gx=D.xmin;gx<=D.xmax+1;gx++){var x=M.l+(gx-D.xmin)*cs;c.beginPath();c.moveTo(x,M.t);c.lineTo(x,M.t+pH);c.stroke();}
+for(var gy=D.ymin;gy<=D.ymax+1;gy++){var y=M.t+(D.ymax-gy+1)*cs;c.beginPath();c.moveTo(M.l,y);c.lineTo(M.l+pW,y);c.stroke();}
+c.save();c.strokeStyle='rgba(255,255,255,0.3)';c.lineWidth=1;c.setLineDash([5,4]);
+c.beginPath();c.arc(mX(D.cx),mY(D.cy),D.r*cs,0,Math.PI*2);c.stroke();c.restore();
+var cxp=mX(D.cx),cyp=mY(D.cy),ms=6;
+c.strokeStyle='#f1c40f';c.lineWidth=1.5;
+c.beginPath();c.moveTo(cxp-ms,cyp);c.lineTo(cxp+ms,cyp);c.stroke();
+c.beginPath();c.moveTo(cxp,cyp-ms);c.lineTo(cxp,cyp+ms);c.stroke();
+c.strokeStyle='#333';c.lineWidth=1;c.strokeRect(M.l,M.t,pW,pH);
+var fs=Math.max(6,Math.min(cs*0.14,11)),ss=Math.max(5,Math.min(cs*0.12,9));
+for(var i=0;i<D.pixels.length;i++){
+var px=D.pixels[i][0],py=D.pixels[i][1];
+var rx=mX(px)-cs*0.46,ry=mY(py)-cs*0.46,rw=cs*0.92,rad=Math.max(2,cs*0.05);
+c.fillStyle='#9b59b6';c.beginPath();c.roundRect(rx,ry,rw,rw,rad);c.fill();
+c.strokeStyle='#8e44ad';c.lineWidth=1.2;c.stroke();
+c.font='bold '+fs+'px sans-serif';c.textAlign='center';c.textBaseline='middle';
+c.strokeStyle='black';c.lineWidth=1.5;c.strokeText('('+px+','+py+')',mX(px),mY(py));
+c.fillStyle='white';c.fillText('('+px+','+py+')',mX(px),mY(py));
+c.fillStyle='rgba(236,240,241,0.8)';c.font=ss+'px sans-serif';c.textAlign='right';c.textBaseline='top';
+c.fillText(String(i+1),mX(px)+cs*0.35,mY(py)-cs*0.34);
+}
+c.fillStyle='#666';c.font='7px sans-serif';c.textAlign='center';c.textBaseline='top';
+for(var tx=D.xmin;tx<=D.xmax;tx++)c.fillText(String(tx),mX(tx),M.t+pH+4);
+c.textAlign='right';c.textBaseline='middle';
+for(var ty=D.ymin;ty<=D.ymax;ty++)c.fillText(String(ty),M.l-4,mY(ty));
+c.fillStyle='#aaa';c.font='9px sans-serif';c.textAlign='center';c.textBaseline='top';
+c.fillText('x',M.l+pW/2,M.t+pH+20);
+c.save();c.translate(10,M.t+pH/2);c.rotate(-Math.PI/2);c.textAlign='center';c.textBaseline='middle';c.fillText('y',0,0);c.restore();
+if(D.title){c.fillStyle='#ddd';c.font='bold 10px sans-serif';c.textAlign='center';c.textBaseline='top';c.fillText(D.title,M.l+pW/2,6);}
+var ly=M.t+pH+M.b-2;
+var items=[{c:'#9b59b6',l:'Pixel'},{c:'#f1c40f',l:'Center ('+D.cx+','+D.cy+')',m:1},{c:null,l:'Ideal circle',d:1}];
+c.font='7px sans-serif';var tw=14;items.forEach(function(it){tw+=c.measureText(it.l).width+22;});
+c.fillStyle='rgba(26,29,35,0.85)';c.fillRect(M.l,ly,Math.min(tw,pW),22);
+c.strokeStyle='#333';c.lineWidth=0.5;c.strokeRect(M.l,ly,Math.min(tw,pW),22);
+var lx=M.l+6;items.forEach(function(it){
+if(it.d){c.save();c.strokeStyle='rgba(255,255,255,0.5)';c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.moveTo(lx,ly+11);c.lineTo(lx+10,ly+11);c.stroke();c.restore();}
+else if(it.m){c.strokeStyle=it.c;c.lineWidth=1.5;c.beginPath();c.moveTo(lx,ly+11);c.lineTo(lx+10,ly+11);c.stroke();c.beginPath();c.moveTo(lx+5,ly+6);c.lineTo(lx+5,ly+16);c.stroke();}
+else{c.fillStyle=it.c;c.fillRect(lx,ly+5,10,12);}
+lx+=14;c.fillStyle='white';c.font='7px sans-serif';c.textAlign='left';c.textBaseline='middle';
+c.fillText(it.l,lx,ly+11);lx+=c.measureText(it.l).width+8;});
+})();""".replace("__DATA__", data_json)
+    html = '<div><canvas id="cv"></canvas></div><script>' + js + '</script>'
+    return html, est_h
 
 @st.cache_data
 def run_dda(x1, y1, x2, y2):
@@ -789,7 +779,6 @@ def draw_2d_rotation(points, new_points, theta_deg, clockwise=False):
     plt.tight_layout()
     return fig
 
-
 # ══════════════════════════════════════════════════════════════════════════════
 # 2D Translation
 # ══════════════════════════════════════════════════════════════════════════════
@@ -950,7 +939,6 @@ def draw_2d_translation(points, new_points, tx, ty,
         spine.set_edgecolor("#333333")
     plt.tight_layout()
     return fig
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 3D Rotation
@@ -1341,11 +1329,10 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
             for col, (title, pixels) in zip(gcols, grid_items):
                 with col:
                     st.markdown(f"**{title}**")
-                    fig = draw_pixel_grid(pixels, x1, y1, x2, y2,
+                    _html, _h = _canvas_pixel_grid(pixels, x1, y1, x2, y2,
                                           title=f"({x1},{y1}) → ({x2},{y2})")
-                    if fig:
-                        st.pyplot(fig, width='stretch')
-                        plt.close(fig)
+                    if _html:
+                        st.components.v1.html(_html, height=_h)
         st.divider()
 
 
@@ -1409,11 +1396,10 @@ Loop continues while $x \leq y$.
 
     # ── Grid ─────────────────────────────────────────────────────────────────
     st.subheader("Grid Visualization")
-    fig_c = draw_circle_grid(circle_pixels, cx, cy, float(r),
+    _html_c, _h_c = _canvas_circle_grid(circle_pixels, cx, cy, float(r),
                              title=f"Midpoint Circle  center=({cx},{cy})  r={r}")
-    if fig_c:
-        st.pyplot(fig_c, width='stretch')
-        plt.close(fig_c)
+    if _html_c:
+        st.components.v1.html(_html_c, height=_h_c)
 
     st.divider()
 
@@ -2088,3 +2074,4 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True,
 )
+#check
