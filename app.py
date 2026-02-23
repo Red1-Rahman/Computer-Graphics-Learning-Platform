@@ -2077,3 +2077,9 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True,
 )
+st.markdown(
+    "<div style='text-align:center;color:#e74c3c;font-size:0.8rem;margin-top:4px'>"
+    "⚠️ This is still a learning project, not verified yet."
+    "</div>",
+    unsafe_allow_html=True,
+)
