@@ -375,6 +375,11 @@ def draw_circle_grid(pixels, cx, cy, r, title=""):
 
 @st.cache_data
 def run_dda(x1, y1, x2, y2):
+    def round_half_away_from_zero(v: float) -> int:
+        # DDA rounding should be symmetric for negative coordinates.
+        # Using floor(v + 0.5) is only correct for v >= 0.
+        return int(math.floor(v + 0.5)) if v >= 0 else int(math.ceil(v - 0.5))
+
     dx = x2 - x1
     dy = y2 - y1
 
@@ -409,8 +414,8 @@ def run_dda(x1, y1, x2, y2):
             "Step (i)": i,
             "x (exact)": round(cx, 4),
             "y (exact)": round(cy, 4),
-            "x (rounded)": math.floor(cx + 0.5),
-            "y (rounded)": math.floor(cy + 0.5),
+            "x (rounded)": round_half_away_from_zero(cx),
+            "y (rounded)": round_half_away_from_zero(cy),
         })
 
     return slope_str, slope_note, rows
