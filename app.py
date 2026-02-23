@@ -1,5 +1,6 @@
 import streamlit as st
 import math
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -205,115 +206,88 @@ st.title("Computer Graphics Algorithms")
 # Pixel Grid Visualizer
 # ══════════════════════════════════════════════════════════════════════════════
 
-def draw_pixel_grid(pixels, x1, y1, x2, y2, title="", ideal_line=True):
-    """
-    Draw a pixel-grid visualization.
-    pixels : list of (x, y) integer tuples (the lit pixels)
-    """
+def _canvas_pixel_grid(pixels, x1, y1, x2, y2, title="", ideal_line=True):
+    """Return (html, height) for a client-side Canvas pixel-grid."""
     if not pixels:
-        return None
-
+        return None, 0
     xs = [p[0] for p in pixels]
     ys = [p[1] for p in pixels]
     pad = 1
     xmin, xmax = min(xs) - pad, max(xs) + pad
     ymin, ymax = min(ys) - pad, max(ys) + pad
-
-    # Cell size in figure units; scale figure to grid size
     cols = xmax - xmin + 1
-    rows_g = ymax - ymin + 1
-    cell = 0.42
-    fig_w = max(3.5, min(cols * cell + 1.2, 7))
-    fig_h = max(2.5, min(rows_g * cell + 1.2, 6))
-
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#0e1117")
-
-    # ── grid lines ────────────────────────────────────────────────────────────
-    for gx in range(xmin, xmax + 2):
-        ax.axvline(gx - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
-    for gy in range(ymin, ymax + 2):
-        ax.axhline(gy - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
-
-    # ── ideal continuous line ─────────────────────────────────────────────────
-    if ideal_line:
-        ax.plot([x1, x2], [y1, y2],
-                color="#ffffff", linewidth=1, linestyle="--",
-                alpha=0.35, zorder=2, label="Ideal line")
-
-    # ── filled pixels ─────────────────────────────────────────────────────────
-    pixel_set = set(pixels)
-    for idx, (px, py) in enumerate(pixels):
-        is_start = (px == x1 and py == y1)
-        is_end   = (px == x2 and py == y2)
-        if is_start:
-            facecolor, edgecolor, label = "#2ecc71", "#27ae60", "Start"
-        elif is_end:
-            facecolor, edgecolor, label = "#e74c3c", "#c0392b", "End"
-        else:
-            facecolor, edgecolor, label = "#3498db", "#2980b9", None
-
-        rect = mpatches.FancyBboxPatch(
-            (px - 0.46, py - 0.46), 0.92, 0.92,
-            boxstyle="round,pad=0.04",
-            facecolor=facecolor, edgecolor=edgecolor,
-            linewidth=1.2, zorder=3
-        )
-        ax.add_patch(rect)
-
-        # coordinate label inside cell
-        ax.text(px, py - 0.02, f"({px},{py})",
-                ha="center", va="center",
-                fontsize=6.5, color="white", fontweight="bold",
-                zorder=4,
-                path_effects=[pe.withStroke(linewidth=1.5, foreground="black")])
-
-        # step index (small, top-right of cell)
-        ax.text(px + 0.35, py + 0.34, str(idx),
-                ha="right", va="top",
-                fontsize=5.5, color="#ecf0f1", alpha=0.8, zorder=4)
-
-    # ── legend ────────────────────────────────────────────────────────────────
-    legend_elements = [
-        mpatches.Patch(facecolor="#2ecc71", edgecolor="#27ae60", label=f"Start ({x1},{y1})"),
-        mpatches.Patch(facecolor="#e74c3c", edgecolor="#c0392b", label=f"End ({x2},{y2})"),
-        mpatches.Patch(facecolor="#3498db", edgecolor="#2980b9", label="Pixel"),
-    ]
-    if ideal_line:
-        legend_elements.append(
-            plt.Line2D([0], [0], color="white", linewidth=1,
-                       linestyle="--", alpha=0.5, label="Ideal line")
-        )
-    ax.legend(handles=legend_elements, loc="upper left",
-              fontsize=7, framealpha=0.3,
-              labelcolor="white", facecolor="#1a1d23")
-
-    ax.set_xlim(xmin - 0.5, xmax + 0.5)
-    ax.set_ylim(ymin - 0.5, ymax + 0.5)
-    ax.set_aspect("equal")
-    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
-    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
-    ax.set_title(title, color="#dddddd", fontsize=10, pad=8)
-    ax.tick_params(colors="#666666", labelsize=7)
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#333333")
-
-    # integer ticks only
-    ax.set_xticks(range(xmin, xmax + 1))
-    ax.set_yticks(range(ymin, ymax + 1))
-
-    plt.tight_layout()
-    return fig
-
+    rows_n = ymax - ymin + 1
+    data_json = json.dumps({
+        "pixels": pixels, "x1": x1, "y1": y1, "x2": x2, "y2": y2,
+        "xmin": xmin, "xmax": xmax, "ymin": ymin, "ymax": ymax,
+        "cols": cols, "rows": rows_n, "title": title, "idealLine": ideal_line,
+    })
+    est_h = max(280, rows_n * 48 + 155)
+    js = """(function(){
+var D=__DATA__;
+var cv=document.getElementById('cv'),c=cv.getContext('2d');
+var dpr=window.devicePixelRatio||1;
+var cW=Math.min(window.innerWidth-10,700);
+var M={t:35,r:15,b:40,l:45};
+var cs=Math.min(Math.max(25,(cW-M.l-M.r)/D.cols),60);
+var pW=D.cols*cs,pH=D.rows*cs,lgH=50;
+var W=pW+M.l+M.r,H=pH+M.t+M.b+lgH;
+cv.width=W*dpr;cv.height=H*dpr;
+cv.style.width=W+'px';cv.style.height=H+'px';cv.style.display='block';
+c.scale(dpr,dpr);
+function mX(v){return M.l+(v-D.xmin+0.5)*cs;}
+function mY(v){return M.t+(D.ymax-v+0.5)*cs;}
+c.fillStyle='#0e1117';c.fillRect(0,0,W,H);
+c.strokeStyle='#2a2d35';c.lineWidth=0.6;
+for(var gx=D.xmin;gx<=D.xmax+1;gx++){var x=M.l+(gx-D.xmin)*cs;c.beginPath();c.moveTo(x,M.t);c.lineTo(x,M.t+pH);c.stroke();}
+for(var gy=D.ymin;gy<=D.ymax+1;gy++){var y=M.t+(D.ymax-gy+1)*cs;c.beginPath();c.moveTo(M.l,y);c.lineTo(M.l+pW,y);c.stroke();}
+if(D.idealLine){c.save();c.strokeStyle='rgba(255,255,255,0.35)';c.lineWidth=1;c.setLineDash([5,4]);c.beginPath();c.moveTo(mX(D.x1),mY(D.y1));c.lineTo(mX(D.x2),mY(D.y2));c.stroke();c.restore();}
+c.strokeStyle='#333';c.lineWidth=1;c.strokeRect(M.l,M.t,pW,pH);
+var fs=Math.max(7,Math.min(cs*0.155,12)),ss=Math.max(6,Math.min(cs*0.13,10));
+for(var i=0;i<D.pixels.length;i++){
+var px=D.pixels[i][0],py=D.pixels[i][1];
+var isS=px===D.x1&&py===D.y1,isE=px===D.x2&&py===D.y2;
+var fc=isS?'#2ecc71':isE?'#e74c3c':'#3498db',ec=isS?'#27ae60':isE?'#c0392b':'#2980b9';
+var rx=mX(px)-cs*0.46,ry=mY(py)-cs*0.46,rw=cs*0.92,rad=Math.max(2,cs*0.05);
+c.fillStyle=fc;c.beginPath();c.roundRect(rx,ry,rw,rw,rad);c.fill();
+c.strokeStyle=ec;c.lineWidth=1.2;c.stroke();
+c.font='bold '+fs+'px sans-serif';c.textAlign='center';c.textBaseline='middle';
+c.strokeStyle='black';c.lineWidth=2;c.strokeText('('+px+','+py+')',mX(px),mY(py));
+c.fillStyle='white';c.fillText('('+px+','+py+')',mX(px),mY(py));
+c.fillStyle='rgba(236,240,241,0.8)';c.font=ss+'px sans-serif';c.textAlign='right';c.textBaseline='top';
+c.fillText(String(i),mX(px)+cs*0.35,mY(py)-cs*0.34);
+}
+c.fillStyle='#666';c.font='7px sans-serif';c.textAlign='center';c.textBaseline='top';
+for(var tx=D.xmin;tx<=D.xmax;tx++)c.fillText(String(tx),mX(tx),M.t+pH+4);
+c.textAlign='right';c.textBaseline='middle';
+for(var ty=D.ymin;ty<=D.ymax;ty++)c.fillText(String(ty),M.l-4,mY(ty));
+c.fillStyle='#aaa';c.font='9px sans-serif';c.textAlign='center';c.textBaseline='top';
+c.fillText('x',M.l+pW/2,M.t+pH+20);
+c.save();c.translate(10,M.t+pH/2);c.rotate(-Math.PI/2);c.textAlign='center';c.textBaseline='middle';c.fillText('y',0,0);c.restore();
+if(D.title){c.fillStyle='#ddd';c.font='bold 10px sans-serif';c.textAlign='center';c.textBaseline='top';c.fillText(D.title,M.l+pW/2,6);}
+var ly=M.t+pH+M.b-2;
+var items=[{c:'#2ecc71',l:'Start ('+D.x1+','+D.y1+')'},{c:'#e74c3c',l:'End ('+D.x2+','+D.y2+')'},{c:'#3498db',l:'Pixel'}];
+if(D.idealLine)items.push({c:null,l:'Ideal line',d:1});
+c.font='7px sans-serif';var tw=14;items.forEach(function(it){tw+=c.measureText(it.l).width+22;});
+c.fillStyle='rgba(26,29,35,0.85)';c.fillRect(M.l,ly,Math.min(tw,pW),22);
+c.strokeStyle='#333';c.lineWidth=0.5;c.strokeRect(M.l,ly,Math.min(tw,pW),22);
+var lx=M.l+6;items.forEach(function(it){
+if(it.d){c.save();c.strokeStyle='rgba(255,255,255,0.5)';c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.moveTo(lx,ly+11);c.lineTo(lx+10,ly+11);c.stroke();c.restore();}
+else{c.fillStyle=it.c;c.fillRect(lx,ly+5,10,12);}
+lx+=14;c.fillStyle='white';c.font='7px sans-serif';c.textAlign='left';c.textBaseline='middle';
+c.fillText(it.l,lx,ly+11);lx+=c.measureText(it.l).width+8;});
+})();""".replace("__DATA__", data_json)
+    html = '<div><canvas id="cv"></canvas></div><script>' + js + '</script>'
+    return html, est_h
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Circle Grid Visualizer
 # ══════════════════════════════════════════════════════════════════════════════
 
-def draw_circle_grid(pixels, cx, cy, r, title=""):
+def _canvas_circle_grid(pixels, cx, cy, r, title=""):
+    """Return (html, height) for a client-side Canvas circle-grid."""
     if not pixels:
-        return None
+        return None, 0
     xs = [p[0] for p in pixels]
     ys = [p[1] for p in pixels]
     pad = 1
@@ -323,55 +297,71 @@ def draw_circle_grid(pixels, cx, cy, r, title=""):
     ymax = max(ys + [cy]) + pad
     cols_n = xmax - xmin + 1
     rows_n = ymax - ymin + 1
-    cell   = 0.42
-    fig_w  = max(4, min(cols_n * cell + 1.2, 8))
-    fig_h  = max(4, min(rows_n * cell + 1.2, 8))
-    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#0e1117")
-    for gx in range(xmin, xmax + 2):
-        ax.axvline(gx - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
-    for gy in range(ymin, ymax + 2):
-        ax.axhline(gy - 0.5, color="#2a2d35", linewidth=0.6, zorder=1)
-    theta = np.linspace(0, 2 * np.pi, 360)
-    ax.plot(cx + r * np.cos(theta), cy + r * np.sin(theta),
-            color="#ffffff", linewidth=1, linestyle="--", alpha=0.3,
-            zorder=2, label="Ideal circle")
-    ax.plot(cx, cy, marker="+", color="#f1c40f", markersize=8,
-            markeredgewidth=1.5, zorder=5)
-    for idx, (px, py) in enumerate(pixels):
-        rect = mpatches.FancyBboxPatch(
-            (px - 0.46, py - 0.46), 0.92, 0.92,
-            boxstyle="round,pad=0.04",
-            facecolor="#9b59b6", edgecolor="#8e44ad", linewidth=1.2, zorder=3)
-        ax.add_patch(rect)
-        ax.text(px, py - 0.02, f"({px},{py})", ha="center", va="center",
-                fontsize=5.8, color="white", fontweight="bold", zorder=4,
-                path_effects=[pe.withStroke(linewidth=1.5, foreground="black")])
-        ax.text(px + 0.35, py + 0.34, str(idx + 1), ha="right", va="top",
-                fontsize=5, color="#ecf0f1", alpha=0.8, zorder=4)
-    legend_elements = [
-        mpatches.Patch(facecolor="#9b59b6", edgecolor="#8e44ad", label="Pixel"),
-        plt.Line2D([0], [0], color="#f1c40f", marker="+", markersize=8,
-                   linewidth=0, label=f"Center ({cx},{cy})"),
-        plt.Line2D([0], [0], color="white", linewidth=1,
-                   linestyle="--", alpha=0.5, label="Ideal circle"),
-    ]
-    ax.legend(handles=legend_elements, loc="upper left", fontsize=7,
-              framealpha=0.3, labelcolor="white", facecolor="#1a1d23")
-    ax.set_xlim(xmin - 0.5, xmax + 0.5)
-    ax.set_ylim(ymin - 0.5, ymax + 0.5)
-    ax.set_aspect("equal")
-    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
-    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
-    ax.set_title(title, color="#dddddd", fontsize=10, pad=8)
-    ax.tick_params(colors="#666666", labelsize=7)
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#333333")
-    ax.set_xticks(range(xmin, xmax + 1))
-    ax.set_yticks(range(ymin, ymax + 1))
-    plt.tight_layout()
-    return fig
+    data_json = json.dumps({
+        "pixels": pixels, "cx": cx, "cy": cy, "r": float(r),
+        "xmin": xmin, "xmax": xmax, "ymin": ymin, "ymax": ymax,
+        "cols": cols_n, "rows": rows_n, "title": title,
+    })
+    est_h = max(350, rows_n * 48 + 155)
+    js = """(function(){
+var D=__DATA__;
+var cv=document.getElementById('cv'),c=cv.getContext('2d');
+var dpr=window.devicePixelRatio||1;
+var cW=Math.min(window.innerWidth-10,800);
+var M={t:35,r:15,b:40,l:45};
+var cs=Math.min(Math.max(22,(cW-M.l-M.r)/D.cols),55);
+var pW=D.cols*cs,pH=D.rows*cs,lgH=50;
+var W=pW+M.l+M.r,H=pH+M.t+M.b+lgH;
+cv.width=W*dpr;cv.height=H*dpr;
+cv.style.width=W+'px';cv.style.height=H+'px';cv.style.display='block';
+c.scale(dpr,dpr);
+function mX(v){return M.l+(v-D.xmin+0.5)*cs;}
+function mY(v){return M.t+(D.ymax-v+0.5)*cs;}
+c.fillStyle='#0e1117';c.fillRect(0,0,W,H);
+c.strokeStyle='#2a2d35';c.lineWidth=0.6;
+for(var gx=D.xmin;gx<=D.xmax+1;gx++){var x=M.l+(gx-D.xmin)*cs;c.beginPath();c.moveTo(x,M.t);c.lineTo(x,M.t+pH);c.stroke();}
+for(var gy=D.ymin;gy<=D.ymax+1;gy++){var y=M.t+(D.ymax-gy+1)*cs;c.beginPath();c.moveTo(M.l,y);c.lineTo(M.l+pW,y);c.stroke();}
+c.save();c.strokeStyle='rgba(255,255,255,0.3)';c.lineWidth=1;c.setLineDash([5,4]);
+c.beginPath();c.arc(mX(D.cx),mY(D.cy),D.r*cs,0,Math.PI*2);c.stroke();c.restore();
+var cxp=mX(D.cx),cyp=mY(D.cy),ms=6;
+c.strokeStyle='#f1c40f';c.lineWidth=1.5;
+c.beginPath();c.moveTo(cxp-ms,cyp);c.lineTo(cxp+ms,cyp);c.stroke();
+c.beginPath();c.moveTo(cxp,cyp-ms);c.lineTo(cxp,cyp+ms);c.stroke();
+c.strokeStyle='#333';c.lineWidth=1;c.strokeRect(M.l,M.t,pW,pH);
+var fs=Math.max(6,Math.min(cs*0.14,11)),ss=Math.max(5,Math.min(cs*0.12,9));
+for(var i=0;i<D.pixels.length;i++){
+var px=D.pixels[i][0],py=D.pixels[i][1];
+var rx=mX(px)-cs*0.46,ry=mY(py)-cs*0.46,rw=cs*0.92,rad=Math.max(2,cs*0.05);
+c.fillStyle='#9b59b6';c.beginPath();c.roundRect(rx,ry,rw,rw,rad);c.fill();
+c.strokeStyle='#8e44ad';c.lineWidth=1.2;c.stroke();
+c.font='bold '+fs+'px sans-serif';c.textAlign='center';c.textBaseline='middle';
+c.strokeStyle='black';c.lineWidth=1.5;c.strokeText('('+px+','+py+')',mX(px),mY(py));
+c.fillStyle='white';c.fillText('('+px+','+py+')',mX(px),mY(py));
+c.fillStyle='rgba(236,240,241,0.8)';c.font=ss+'px sans-serif';c.textAlign='right';c.textBaseline='top';
+c.fillText(String(i+1),mX(px)+cs*0.35,mY(py)-cs*0.34);
+}
+c.fillStyle='#666';c.font='7px sans-serif';c.textAlign='center';c.textBaseline='top';
+for(var tx=D.xmin;tx<=D.xmax;tx++)c.fillText(String(tx),mX(tx),M.t+pH+4);
+c.textAlign='right';c.textBaseline='middle';
+for(var ty=D.ymin;ty<=D.ymax;ty++)c.fillText(String(ty),M.l-4,mY(ty));
+c.fillStyle='#aaa';c.font='9px sans-serif';c.textAlign='center';c.textBaseline='top';
+c.fillText('x',M.l+pW/2,M.t+pH+20);
+c.save();c.translate(10,M.t+pH/2);c.rotate(-Math.PI/2);c.textAlign='center';c.textBaseline='middle';c.fillText('y',0,0);c.restore();
+if(D.title){c.fillStyle='#ddd';c.font='bold 10px sans-serif';c.textAlign='center';c.textBaseline='top';c.fillText(D.title,M.l+pW/2,6);}
+var ly=M.t+pH+M.b-2;
+var items=[{c:'#9b59b6',l:'Pixel'},{c:'#f1c40f',l:'Center ('+D.cx+','+D.cy+')',m:1},{c:null,l:'Ideal circle',d:1}];
+c.font='7px sans-serif';var tw=14;items.forEach(function(it){tw+=c.measureText(it.l).width+22;});
+c.fillStyle='rgba(26,29,35,0.85)';c.fillRect(M.l,ly,Math.min(tw,pW),22);
+c.strokeStyle='#333';c.lineWidth=0.5;c.strokeRect(M.l,ly,Math.min(tw,pW),22);
+var lx=M.l+6;items.forEach(function(it){
+if(it.d){c.save();c.strokeStyle='rgba(255,255,255,0.5)';c.lineWidth=1;c.setLineDash([3,3]);c.beginPath();c.moveTo(lx,ly+11);c.lineTo(lx+10,ly+11);c.stroke();c.restore();}
+else if(it.m){c.strokeStyle=it.c;c.lineWidth=1.5;c.beginPath();c.moveTo(lx,ly+11);c.lineTo(lx+10,ly+11);c.stroke();c.beginPath();c.moveTo(lx+5,ly+6);c.lineTo(lx+5,ly+16);c.stroke();}
+else{c.fillStyle=it.c;c.fillRect(lx,ly+5,10,12);}
+lx+=14;c.fillStyle='white';c.font='7px sans-serif';c.textAlign='left';c.textBaseline='middle';
+c.fillText(it.l,lx,ly+11);lx+=c.measureText(it.l).width+8;});
+})();""".replace("__DATA__", data_json)
+    html = '<div><canvas id="cv"></canvas></div><script>' + js + '</script>'
+    return html, est_h
 
 @st.cache_data
 def run_dda(x1, y1, x2, y2):
@@ -701,94 +691,99 @@ def run_2d_rotation(points, theta_deg, clockwise=False):
     return rows, new_points
 
 
-def draw_2d_rotation(points, new_points, theta_deg, clockwise=False):
-    """Visualise original and rotated points on a dark-themed plot."""
+def _canvas_2d_rotation(points, new_points, theta_deg, clockwise=False):
+    """Return (html, height) for a client-side 2D rotation canvas."""
     if not points:
-        return None
+        return None, 0
     all_x = [p[0] for p in points] + [p[0] for p in new_points]
     all_y = [p[1] for p in points] + [p[1] for p in new_points]
     span = max(max(all_x) - min(all_x), max(all_y) - min(all_y), 4)
-    pad  = span * 0.30
+    pad = span * 0.30
     cx_c = (max(all_x) + min(all_x)) / 2
     cy_c = (max(all_y) + min(all_y)) / 2
     half = span / 2 + pad
-    xmin, xmax = cx_c - half, cx_c + half
-    ymin, ymax = cy_c - half, cy_c + half
-
-    fig, ax = plt.subplots(figsize=(7, 6))
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#0e1117")
-
-    # Axes
-    ax.axhline(0, color="#555", linewidth=0.9, zorder=1)
-    ax.axvline(0, color="#555", linewidth=0.9, zorder=1)
-    ax.grid(True, color="#1e2030", linewidth=0.6, zorder=0)
-
-    # Connect original polygon
-    if len(points) > 1:
-        ox = [p[0] for p in points] + [points[0][0]]
-        oy = [p[1] for p in points] + [points[0][1]]
-        ax.plot(ox, oy, color="#3498db", linewidth=1.4,
-                alpha=0.55, linestyle="--", zorder=2)
-        nx_ = [p[0] for p in new_points] + [new_points[0][0]]
-        ny_ = [p[1] for p in new_points] + [new_points[0][1]]
-        ax.plot(nx_, ny_, color="#2ecc71", linewidth=1.4,
-                alpha=0.55, linestyle="--", zorder=2)
-
-    # Rotation arrows
-    for (ox2, oy2), (nx2, ny2) in zip(points, new_points):
-        ax.annotate("",
-            xy=(nx2, ny2), xytext=(ox2, oy2),
-            arrowprops=dict(arrowstyle="->", color="#f39c12",
-                            lw=1.1, alpha=0.55),
-            zorder=3)
-
-    # Original points
-    for i, (px, py) in enumerate(points):
-        ax.scatter(px, py, color="#3498db", s=80, zorder=5,
-                   edgecolors="#2980b9", linewidths=1.2)
-        ax.text(px + 0.06 * span, py + 0.06 * span,
-                f"{POINT_LABELS[i]}({px}, {py})",
-                color="#7fb3d3", fontsize=8, fontweight="bold", zorder=6,
-                path_effects=[pe.withStroke(linewidth=1.8,
-                                            foreground="#0e1117")])
-
-    # Rotated points
-    for i, (px, py) in enumerate(new_points):
-        ax.scatter(px, py, color="#2ecc71", s=80, zorder=5,
-                   edgecolors="#27ae60", linewidths=1.2)
-        ax.text(px + 0.06 * span, py + 0.06 * span,
-                f"{POINT_LABELS[i]}'({px}, {py})",
-                color="#82e0aa", fontsize=8, fontweight="bold", zorder=6,
-                path_effects=[pe.withStroke(linewidth=1.8,
-                                            foreground="#0e1117")])
-
+    labels = list("ABCDEFGHIJ")[:len(points)]
     direction_str = "CW" if clockwise else "CCW"
-    legend_elements = [
-        mpatches.Patch(facecolor="#3498db", edgecolor="#2980b9",
-                       label="Original points"),
-        mpatches.Patch(facecolor="#2ecc71", edgecolor="#27ae60",
-                       label=f"Rotated points ({direction_str} {theta_deg}\u00b0)"),
-        plt.Line2D([0], [0], color="#f39c12", linewidth=1.5,
-                   marker=">", markersize=6, label="Rotation path"),
-    ]
-    ax.legend(handles=legend_elements, loc="upper left", fontsize=7,
-              framealpha=0.3, labelcolor="white", facecolor="#1a1d23")
-
-    ax.set_xlim(xmin, xmax)
-    ax.set_ylim(ymin, ymax)
-    ax.set_aspect("equal")
-    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
-    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
     direction_label = "Clockwise" if clockwise else "Counter-Clockwise"
-    ax.set_title(f"2D Rotation  \u2014  \u03b8 = {theta_deg}\u00b0  ({direction_label})",
-                 color="#dddddd", fontsize=10, pad=8)
-    ax.tick_params(colors="#666666", labelsize=7)
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#333333")
-    plt.tight_layout()
-    return fig
-
+    data_json = json.dumps({
+        "pts": [list(p) for p in points],
+        "npts": [list(p) for p in new_points],
+        "labels": labels, "theta": theta_deg,
+        "dir": direction_str, "dirL": direction_label,
+        "xmin": cx_c - half, "xmax": cx_c + half,
+        "ymin": cy_c - half, "ymax": cy_c + half, "span": span,
+    })
+    est_h = 530
+    js = """(function(){
+var D=__DATA__;
+var cv=document.getElementById('cv'),c=cv.getContext('2d');
+var dpr=window.devicePixelRatio||1;
+var cW=Math.min(window.innerWidth-10,700);
+var M={t:35,r:25,b:40,l:50},lgH=45;
+var plotS=Math.min(cW-M.l-M.r,420);
+var W=plotS+M.l+M.r,H=plotS+M.t+M.b+lgH;
+cv.width=W*dpr;cv.height=H*dpr;
+cv.style.width=W+'px';cv.style.height=H+'px';cv.style.display='block';
+c.scale(dpr,dpr);
+var xr=D.xmax-D.xmin,yr=D.ymax-D.ymin;
+function mX(v){return M.l+(v-D.xmin)/xr*plotS;}
+function mY(v){return M.t+plotS-(v-D.ymin)/yr*plotS;}
+c.fillStyle='#0e1117';c.fillRect(0,0,W,H);
+c.strokeStyle='#1e2030';c.lineWidth=0.6;
+var step=Math.pow(10,Math.floor(Math.log10(Math.max(xr,yr)/5)));if(step<1)step=1;
+for(var gx=Math.ceil(D.xmin/step)*step;gx<=D.xmax;gx+=step){var x=mX(gx);c.beginPath();c.moveTo(x,M.t);c.lineTo(x,M.t+plotS);c.stroke();}
+for(var gy=Math.ceil(D.ymin/step)*step;gy<=D.ymax;gy+=step){var y=mY(gy);c.beginPath();c.moveTo(M.l,y);c.lineTo(M.l+plotS,y);c.stroke();}
+c.strokeStyle='#555';c.lineWidth=0.9;
+if(D.ymin<=0&&D.ymax>=0){c.beginPath();c.moveTo(M.l,mY(0));c.lineTo(M.l+plotS,mY(0));c.stroke();}
+if(D.xmin<=0&&D.xmax>=0){c.beginPath();c.moveTo(mX(0),M.t);c.lineTo(mX(0),M.t+plotS);c.stroke();}
+c.strokeStyle='#333';c.lineWidth=1;c.strokeRect(M.l,M.t,plotS,plotS);
+function drawArrow(x1,y1,x2,y2,col,al){
+var hl=8,a=Math.atan2(y2-y1,x2-x1);c.save();c.globalAlpha=al||0.55;c.strokeStyle=col;c.fillStyle=col;c.lineWidth=1.1;
+c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
+c.beginPath();c.moveTo(x2,y2);c.lineTo(x2-hl*Math.cos(a-Math.PI/6),y2-hl*Math.sin(a-Math.PI/6));
+c.lineTo(x2-hl*Math.cos(a+Math.PI/6),y2-hl*Math.sin(a+Math.PI/6));c.closePath();c.fill();c.restore();}
+if(D.pts.length>1){
+c.save();c.strokeStyle='#3498db';c.lineWidth=1.4;c.globalAlpha=0.55;c.setLineDash([5,4]);
+c.beginPath();c.moveTo(mX(D.pts[0][0]),mY(D.pts[0][1]));
+for(var i=1;i<D.pts.length;i++)c.lineTo(mX(D.pts[i][0]),mY(D.pts[i][1]));c.closePath();c.stroke();c.restore();
+c.save();c.strokeStyle='#2ecc71';c.lineWidth=1.4;c.globalAlpha=0.55;c.setLineDash([5,4]);
+c.beginPath();c.moveTo(mX(D.npts[0][0]),mY(D.npts[0][1]));
+for(var i=1;i<D.npts.length;i++)c.lineTo(mX(D.npts[i][0]),mY(D.npts[i][1]));c.closePath();c.stroke();c.restore();}
+for(var i=0;i<D.pts.length;i++)drawArrow(mX(D.pts[i][0]),mY(D.pts[i][1]),mX(D.npts[i][0]),mY(D.npts[i][1]),'#f39c12',0.55);
+for(var i=0;i<D.pts.length;i++){
+var px=mX(D.pts[i][0]),py=mY(D.pts[i][1]);
+c.beginPath();c.arc(px,py,5,0,Math.PI*2);c.fillStyle='#3498db';c.fill();c.strokeStyle='#2980b9';c.lineWidth=1.2;c.stroke();
+c.font='bold 8px sans-serif';c.textAlign='left';c.textBaseline='bottom';
+c.strokeStyle='#0e1117';c.lineWidth=2;c.fillStyle='#7fb3d3';
+var lbl=D.labels[i]+'('+D.pts[i][0]+', '+D.pts[i][1]+')';c.strokeText(lbl,px+6,py-4);c.fillText(lbl,px+6,py-4);}
+for(var i=0;i<D.npts.length;i++){
+var px=mX(D.npts[i][0]),py=mY(D.npts[i][1]);
+c.beginPath();c.arc(px,py,5,0,Math.PI*2);c.fillStyle='#2ecc71';c.fill();c.strokeStyle='#27ae60';c.lineWidth=1.2;c.stroke();
+c.font='bold 8px sans-serif';c.textAlign='left';c.textBaseline='bottom';
+c.strokeStyle='#0e1117';c.lineWidth=2;c.fillStyle='#82e0aa';
+var lbl=D.labels[i]+"'("+D.npts[i][0]+', '+D.npts[i][1]+')';c.strokeText(lbl,px+6,py-4);c.fillText(lbl,px+6,py-4);}
+c.fillStyle='#666';c.font='7px sans-serif';c.textAlign='center';c.textBaseline='top';
+for(var gx=Math.ceil(D.xmin/step)*step;gx<=D.xmax;gx+=step)c.fillText(gx.toFixed(step<1?1:0),mX(gx),M.t+plotS+4);
+c.textAlign='right';c.textBaseline='middle';
+for(var gy=Math.ceil(D.ymin/step)*step;gy<=D.ymax;gy+=step)c.fillText(gy.toFixed(step<1?1:0),M.l-4,mY(gy));
+c.fillStyle='#aaa';c.font='9px sans-serif';c.textAlign='center';c.textBaseline='top';c.fillText('x',M.l+plotS/2,M.t+plotS+20);
+c.save();c.translate(10,M.t+plotS/2);c.rotate(-Math.PI/2);c.textAlign='center';c.textBaseline='middle';c.fillText('y',0,0);c.restore();
+c.fillStyle='#ddd';c.font='bold 10px sans-serif';c.textAlign='center';c.textBaseline='top';
+c.fillText('2D Rotation \u2014 \u03b8 = '+D.theta+'\u00b0 ('+D.dirL+')',M.l+plotS/2,6);
+var ly=M.t+plotS+M.b-2;
+var items=[{c:'#3498db',l:'Original points'},{c:'#2ecc71',l:'Rotated ('+D.dir+' '+D.theta+'\u00b0)'},{c:'#f39c12',l:'Rotation path',a:1}];
+c.font='7px sans-serif';var tw=14;items.forEach(function(it){tw+=c.measureText(it.l).width+22;});
+c.fillStyle='rgba(26,29,35,0.85)';c.fillRect(M.l,ly,Math.min(tw,plotS),22);
+c.strokeStyle='#333';c.lineWidth=0.5;c.strokeRect(M.l,ly,Math.min(tw,plotS),22);
+var lx=M.l+6;items.forEach(function(it){
+if(it.a){c.strokeStyle=it.c;c.lineWidth=1.5;c.beginPath();c.moveTo(lx,ly+11);c.lineTo(lx+10,ly+11);c.stroke();
+c.fillStyle=it.c;c.beginPath();c.moveTo(lx+10,ly+11);c.lineTo(lx+6,ly+8);c.lineTo(lx+6,ly+14);c.closePath();c.fill();}
+else{c.fillStyle=it.c;c.fillRect(lx,ly+5,10,12);}
+lx+=14;c.fillStyle='white';c.font='7px sans-serif';c.textAlign='left';c.textBaseline='middle';
+c.fillText(it.l,lx,ly+11);lx+=c.measureText(it.l).width+8;});
+})();""".replace("__DATA__", data_json)
+    html = '<div><canvas id="cv"></canvas></div><script>' + js + '</script>'
+    return html, est_h
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 2D Translation
@@ -835,11 +830,11 @@ def run_2d_translation_circle(cx, cy, r, tx, ty):
     return rows, new_cx, new_cy
 
 
-def draw_2d_translation(points, new_points, tx, ty,
-                        is_circle=False, radius=None):
-    """Visualise original and translated shape on a dark-themed plot."""
+def _canvas_2d_translation(points, new_points, tx, ty,
+                           is_circle=False, radius=None):
+    """Return (html, height) for a client-side 2D translation canvas."""
     if not points:
-        return None
+        return None, 0
     all_x = [p[0] for p in points] + [p[0] for p in new_points]
     all_y = [p[1] for p in points] + [p[1] for p in new_points]
     if is_circle and radius is not None:
@@ -848,109 +843,106 @@ def draw_2d_translation(points, new_points, tx, ty,
         all_y += [points[0][1] - radius, points[0][1] + radius,
                   new_points[0][1] - radius, new_points[0][1] + radius]
     span = max(max(all_x) - min(all_x), max(all_y) - min(all_y), 4)
-    pad  = span * 0.35
+    pad = span * 0.35
     cx_c = (max(all_x) + min(all_x)) / 2
     cy_c = (max(all_y) + min(all_y)) / 2
     half = span / 2 + pad
-    xmin_p, xmax_p = cx_c - half, cx_c + half
-    ymin_p, ymax_p = cy_c - half, cy_c + half
-
-    fig, ax = plt.subplots(figsize=(7, 6))
-    fig.patch.set_facecolor("#0e1117")
-    ax.set_facecolor("#0e1117")
-    ax.axhline(0, color="#555", linewidth=0.9, zorder=1)
-    ax.axvline(0, color="#555", linewidth=0.9, zorder=1)
-    ax.grid(True, color="#1e2030", linewidth=0.6, zorder=0)
-
-    if is_circle and radius is not None:
-        theta_arr = np.linspace(0, 2 * np.pi, 360)
-        ox_c, oy_c   = points[0]
-        nx_c, ny_c   = new_points[0]
-        # Original circle
-        ax.plot(ox_c + radius * np.cos(theta_arr),
-                oy_c + radius * np.sin(theta_arr),
-                color="#3498db", linewidth=1.8, alpha=0.7,
-                linestyle="--", zorder=2)
-        # Translated circle
-        ax.plot(nx_c + radius * np.cos(theta_arr),
-                ny_c + radius * np.sin(theta_arr),
-                color="#2ecc71", linewidth=1.8, alpha=0.7,
-                linestyle="--", zorder=2)
-        # Centre points
-        ax.scatter(ox_c, oy_c, color="#3498db", s=80, zorder=5,
-                   edgecolors="#2980b9", linewidths=1.2)
-        ax.scatter(nx_c, ny_c, color="#2ecc71", s=80, zorder=5,
-                   edgecolors="#27ae60", linewidths=1.2)
-        ax.text(ox_c + 0.06 * span, oy_c + 0.06 * span,
-                f"C({ox_c}, {oy_c})",
-                color="#7fb3d3", fontsize=8, fontweight="bold", zorder=6,
-                path_effects=[pe.withStroke(linewidth=1.8,
-                                            foreground="#0e1117")])
-        ax.text(nx_c + 0.06 * span, ny_c + 0.06 * span,
-                f"C'({nx_c}, {ny_c})",
-                color="#82e0aa", fontsize=8, fontweight="bold", zorder=6,
-                path_effects=[pe.withStroke(linewidth=1.8,
-                                            foreground="#0e1117")])
-        # Arrow from old centre to new centre
-        ax.annotate("", xy=(nx_c, ny_c), xytext=(ox_c, oy_c),
-                    arrowprops=dict(arrowstyle="->", color="#f39c12",
-                                   lw=1.5, alpha=0.8),
-                    zorder=3)
-    else:
-        if len(points) > 1:
-            ox_poly = [p[0] for p in points] + [points[0][0]]
-            oy_poly = [p[1] for p in points] + [points[0][1]]
-            ax.plot(ox_poly, oy_poly, color="#3498db", linewidth=1.4,
-                    alpha=0.55, linestyle="--", zorder=2)
-            nx_poly = [p[0] for p in new_points] + [new_points[0][0]]
-            ny_poly = [p[1] for p in new_points] + [new_points[0][1]]
-            ax.plot(nx_poly, ny_poly, color="#2ecc71", linewidth=1.4,
-                    alpha=0.55, linestyle="--", zorder=2)
-        for (ox2, oy2), (nx2, ny2) in zip(points, new_points):
-            ax.annotate("", xy=(nx2, ny2), xytext=(ox2, oy2),
-                        arrowprops=dict(arrowstyle="->", color="#f39c12",
-                                        lw=1.1, alpha=0.55),
-                        zorder=3)
-        for i, (px, py) in enumerate(points):
-            ax.scatter(px, py, color="#3498db", s=80, zorder=5,
-                       edgecolors="#2980b9", linewidths=1.2)
-            ax.text(px + 0.06 * span, py + 0.06 * span,
-                    f"{POINT_LABELS[i]}({px}, {py})",
-                    color="#7fb3d3", fontsize=8, fontweight="bold", zorder=6,
-                    path_effects=[pe.withStroke(linewidth=1.8,
-                                                foreground="#0e1117")])
-        for i, (px, py) in enumerate(new_points):
-            ax.scatter(px, py, color="#2ecc71", s=80, zorder=5,
-                       edgecolors="#27ae60", linewidths=1.2)
-            ax.text(px + 0.06 * span, py + 0.06 * span,
-                    f"{POINT_LABELS[i]}'({px}, {py})",
-                    color="#82e0aa", fontsize=8, fontweight="bold", zorder=6,
-                    path_effects=[pe.withStroke(linewidth=1.8,
-                                                foreground="#0e1117")])
-
-    legend_elements = [
-        mpatches.Patch(facecolor="#3498db", edgecolor="#2980b9",
-                       label="Original"),
-        mpatches.Patch(facecolor="#2ecc71", edgecolor="#27ae60",
-                       label=f"Translated  (Tx={tx}, Ty={ty})"),
-        plt.Line2D([0], [0], color="#f39c12", linewidth=1.5,
-                   marker=">", markersize=6, label="Translation direction"),
-    ]
-    ax.legend(handles=legend_elements, loc="upper left", fontsize=7,
-              framealpha=0.3, labelcolor="white", facecolor="#1a1d23")
-    ax.set_xlim(xmin_p, xmax_p)
-    ax.set_ylim(ymin_p, ymax_p)
-    ax.set_aspect("equal")
-    ax.set_xlabel("x", color="#aaaaaa", fontsize=9)
-    ax.set_ylabel("y", color="#aaaaaa", fontsize=9)
-    ax.set_title(f"2D Translation  \u2014  T = ({tx}, {ty})",
-                 color="#dddddd", fontsize=10, pad=8)
-    ax.tick_params(colors="#666666", labelsize=7)
-    for spine in ax.spines.values():
-        spine.set_edgecolor("#333333")
-    plt.tight_layout()
-    return fig
-
+    labels = list("ABCDEFGHIJ")[:len(points)]
+    data_json = json.dumps({
+        "pts": [list(p) for p in points],
+        "npts": [list(p) for p in new_points],
+        "labels": labels, "tx": tx, "ty": ty,
+        "isCircle": is_circle, "radius": radius,
+        "xmin": cx_c - half, "xmax": cx_c + half,
+        "ymin": cy_c - half, "ymax": cy_c + half, "span": span,
+    })
+    est_h = 530
+    js = """(function(){
+var D=__DATA__;
+var cv=document.getElementById('cv'),c=cv.getContext('2d');
+var dpr=window.devicePixelRatio||1;
+var cW=Math.min(window.innerWidth-10,700);
+var M={t:35,r:25,b:40,l:50},lgH=45;
+var plotS=Math.min(cW-M.l-M.r,420);
+var W=plotS+M.l+M.r,H=plotS+M.t+M.b+lgH;
+cv.width=W*dpr;cv.height=H*dpr;
+cv.style.width=W+'px';cv.style.height=H+'px';cv.style.display='block';
+c.scale(dpr,dpr);
+var xr=D.xmax-D.xmin,yr=D.ymax-D.ymin;
+function mX(v){return M.l+(v-D.xmin)/xr*plotS;}
+function mY(v){return M.t+plotS-(v-D.ymin)/yr*plotS;}
+var scale=plotS/xr;
+c.fillStyle='#0e1117';c.fillRect(0,0,W,H);
+c.strokeStyle='#1e2030';c.lineWidth=0.6;
+var step=Math.pow(10,Math.floor(Math.log10(Math.max(xr,yr)/5)));if(step<1)step=1;
+for(var gx=Math.ceil(D.xmin/step)*step;gx<=D.xmax;gx+=step){var x=mX(gx);c.beginPath();c.moveTo(x,M.t);c.lineTo(x,M.t+plotS);c.stroke();}
+for(var gy=Math.ceil(D.ymin/step)*step;gy<=D.ymax;gy+=step){var y=mY(gy);c.beginPath();c.moveTo(M.l,y);c.lineTo(M.l+plotS,y);c.stroke();}
+c.strokeStyle='#555';c.lineWidth=0.9;
+if(D.ymin<=0&&D.ymax>=0){c.beginPath();c.moveTo(M.l,mY(0));c.lineTo(M.l+plotS,mY(0));c.stroke();}
+if(D.xmin<=0&&D.xmax>=0){c.beginPath();c.moveTo(mX(0),M.t);c.lineTo(mX(0),M.t+plotS);c.stroke();}
+c.strokeStyle='#333';c.lineWidth=1;c.strokeRect(M.l,M.t,plotS,plotS);
+function drawArrow(x1,y1,x2,y2,col,al,lw){
+var hl=8,a=Math.atan2(y2-y1,x2-x1);c.save();c.globalAlpha=al||0.55;c.strokeStyle=col;c.fillStyle=col;c.lineWidth=lw||1.1;
+c.beginPath();c.moveTo(x1,y1);c.lineTo(x2,y2);c.stroke();
+c.beginPath();c.moveTo(x2,y2);c.lineTo(x2-hl*Math.cos(a-Math.PI/6),y2-hl*Math.sin(a-Math.PI/6));
+c.lineTo(x2-hl*Math.cos(a+Math.PI/6),y2-hl*Math.sin(a+Math.PI/6));c.closePath();c.fill();c.restore();}
+if(D.isCircle&&D.radius!=null){
+var rPx=D.radius*scale;
+c.save();c.strokeStyle='#3498db';c.lineWidth=1.8;c.globalAlpha=0.7;c.setLineDash([5,5]);
+c.beginPath();c.arc(mX(D.pts[0][0]),mY(D.pts[0][1]),rPx,0,Math.PI*2);c.stroke();c.restore();
+c.save();c.strokeStyle='#2ecc71';c.lineWidth=1.8;c.globalAlpha=0.7;c.setLineDash([5,5]);
+c.beginPath();c.arc(mX(D.npts[0][0]),mY(D.npts[0][1]),rPx,0,Math.PI*2);c.stroke();c.restore();
+var ox=mX(D.pts[0][0]),oy=mY(D.pts[0][1]),nx=mX(D.npts[0][0]),ny=mY(D.npts[0][1]);
+c.beginPath();c.arc(ox,oy,5,0,Math.PI*2);c.fillStyle='#3498db';c.fill();c.strokeStyle='#2980b9';c.lineWidth=1.2;c.stroke();
+c.beginPath();c.arc(nx,ny,5,0,Math.PI*2);c.fillStyle='#2ecc71';c.fill();c.strokeStyle='#27ae60';c.lineWidth=1.2;c.stroke();
+c.font='bold 8px sans-serif';c.strokeStyle='#0e1117';c.lineWidth=2;c.textAlign='left';c.textBaseline='bottom';
+c.fillStyle='#7fb3d3';var lbl='C('+D.pts[0][0]+', '+D.pts[0][1]+')';c.strokeText(lbl,ox+6,oy-4);c.fillText(lbl,ox+6,oy-4);
+c.fillStyle='#82e0aa';lbl="C'("+D.npts[0][0]+', '+D.npts[0][1]+')';c.strokeText(lbl,nx+6,ny-4);c.fillText(lbl,nx+6,ny-4);
+drawArrow(ox,oy,nx,ny,'#f39c12',0.8,1.5);
+}else{
+if(D.pts.length>1){
+c.save();c.strokeStyle='#3498db';c.lineWidth=1.4;c.globalAlpha=0.55;c.setLineDash([5,4]);
+c.beginPath();c.moveTo(mX(D.pts[0][0]),mY(D.pts[0][1]));
+for(var i=1;i<D.pts.length;i++)c.lineTo(mX(D.pts[i][0]),mY(D.pts[i][1]));c.closePath();c.stroke();c.restore();
+c.save();c.strokeStyle='#2ecc71';c.lineWidth=1.4;c.globalAlpha=0.55;c.setLineDash([5,4]);
+c.beginPath();c.moveTo(mX(D.npts[0][0]),mY(D.npts[0][1]));
+for(var i=1;i<D.npts.length;i++)c.lineTo(mX(D.npts[i][0]),mY(D.npts[i][1]));c.closePath();c.stroke();c.restore();}
+for(var i=0;i<D.pts.length;i++)drawArrow(mX(D.pts[i][0]),mY(D.pts[i][1]),mX(D.npts[i][0]),mY(D.npts[i][1]),'#f39c12',0.55);
+for(var i=0;i<D.pts.length;i++){
+var px=mX(D.pts[i][0]),py=mY(D.pts[i][1]);
+c.beginPath();c.arc(px,py,5,0,Math.PI*2);c.fillStyle='#3498db';c.fill();c.strokeStyle='#2980b9';c.lineWidth=1.2;c.stroke();
+c.font='bold 8px sans-serif';c.textAlign='left';c.textBaseline='bottom';
+c.strokeStyle='#0e1117';c.lineWidth=2;c.fillStyle='#7fb3d3';
+var lbl=D.labels[i]+'('+D.pts[i][0]+', '+D.pts[i][1]+')';c.strokeText(lbl,px+6,py-4);c.fillText(lbl,px+6,py-4);}
+for(var i=0;i<D.npts.length;i++){
+var px=mX(D.npts[i][0]),py=mY(D.npts[i][1]);
+c.beginPath();c.arc(px,py,5,0,Math.PI*2);c.fillStyle='#2ecc71';c.fill();c.strokeStyle='#27ae60';c.lineWidth=1.2;c.stroke();
+c.font='bold 8px sans-serif';c.textAlign='left';c.textBaseline='bottom';
+c.strokeStyle='#0e1117';c.lineWidth=2;c.fillStyle='#82e0aa';
+var lbl=D.labels[i]+"'("+D.npts[i][0]+', '+D.npts[i][1]+')';c.strokeText(lbl,px+6,py-4);c.fillText(lbl,px+6,py-4);}
+}
+c.fillStyle='#666';c.font='7px sans-serif';c.textAlign='center';c.textBaseline='top';
+for(var gx=Math.ceil(D.xmin/step)*step;gx<=D.xmax;gx+=step)c.fillText(gx.toFixed(step<1?1:0),mX(gx),M.t+plotS+4);
+c.textAlign='right';c.textBaseline='middle';
+for(var gy=Math.ceil(D.ymin/step)*step;gy<=D.ymax;gy+=step)c.fillText(gy.toFixed(step<1?1:0),M.l-4,mY(gy));
+c.fillStyle='#aaa';c.font='9px sans-serif';c.textAlign='center';c.textBaseline='top';c.fillText('x',M.l+plotS/2,M.t+plotS+20);
+c.save();c.translate(10,M.t+plotS/2);c.rotate(-Math.PI/2);c.textAlign='center';c.textBaseline='middle';c.fillText('y',0,0);c.restore();
+c.fillStyle='#ddd';c.font='bold 10px sans-serif';c.textAlign='center';c.textBaseline='top';
+c.fillText('2D Translation \u2014 T = ('+D.tx+', '+D.ty+')',M.l+plotS/2,6);
+var ly=M.t+plotS+M.b-2;
+var items=[{c:'#3498db',l:'Original'},{c:'#2ecc71',l:'Translated (Tx='+D.tx+', Ty='+D.ty+')'},{c:'#f39c12',l:'Translation direction',a:1}];
+c.font='7px sans-serif';var tw=14;items.forEach(function(it){tw+=c.measureText(it.l).width+22;});
+c.fillStyle='rgba(26,29,35,0.85)';c.fillRect(M.l,ly,Math.min(tw,plotS),22);
+c.strokeStyle='#333';c.lineWidth=0.5;c.strokeRect(M.l,ly,Math.min(tw,plotS),22);
+var lx=M.l+6;items.forEach(function(it){
+if(it.a){c.strokeStyle=it.c;c.lineWidth=1.5;c.beginPath();c.moveTo(lx,ly+11);c.lineTo(lx+10,ly+11);c.stroke();
+c.fillStyle=it.c;c.beginPath();c.moveTo(lx+10,ly+11);c.lineTo(lx+6,ly+8);c.lineTo(lx+6,ly+14);c.closePath();c.fill();}
+else{c.fillStyle=it.c;c.fillRect(lx,ly+5,10,12);}
+lx+=14;c.fillStyle='white';c.font='7px sans-serif';c.textAlign='left';c.textBaseline='middle';
+c.fillText(it.l,lx,ly+11);lx+=c.measureText(it.l).width+8;});
+})();""".replace("__DATA__", data_json)
+    html = '<div><canvas id="cv"></canvas></div><script>' + js + '</script>'
+    return html, est_h
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 3D Rotation
@@ -1341,11 +1333,10 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
             for col, (title, pixels) in zip(gcols, grid_items):
                 with col:
                     st.markdown(f"**{title}**")
-                    fig = draw_pixel_grid(pixels, x1, y1, x2, y2,
+                    _html, _h = _canvas_pixel_grid(pixels, x1, y1, x2, y2,
                                           title=f"({x1},{y1}) → ({x2},{y2})")
-                    if fig:
-                        st.pyplot(fig, width='stretch')
-                        plt.close(fig)
+                    if _html:
+                        st.components.v1.html(_html, height=_h)
         st.divider()
 
 
@@ -1409,11 +1400,10 @@ Loop continues while $x \leq y$.
 
     # ── Grid ─────────────────────────────────────────────────────────────────
     st.subheader("Grid Visualization")
-    fig_c = draw_circle_grid(circle_pixels, cx, cy, float(r),
+    _html_c, _h_c = _canvas_circle_grid(circle_pixels, cx, cy, float(r),
                              title=f"Midpoint Circle  center=({cx},{cy})  r={r}")
-    if fig_c:
-        st.pyplot(fig_c, width='stretch')
-        plt.close(fig_c)
+    if _html_c:
+        st.components.v1.html(_html_c, height=_h_c)
 
     st.divider()
 
@@ -1527,10 +1517,9 @@ with tab_2d:
 
         # ── Visualization ──────────────────────────────────────────────────────
         st.subheader("Visualization")
-        fig_2d = draw_2d_rotation(points_2d, new_pts_2d, theta_deg, clockwise_2d)
-        if fig_2d:
-            st.pyplot(fig_2d, width='stretch')
-            plt.close(fig_2d)
+        _html_2d, _h_2d = _canvas_2d_rotation(points_2d, new_pts_2d, theta_deg, clockwise_2d)
+        if _html_2d:
+            st.components.v1.html(_html_2d, height=_h_2d)
 
         st.divider()
 
@@ -1639,13 +1628,12 @@ with tab_2d:
 
             # Visualisation
             st.subheader("Visualization")
-            fig_tc = draw_2d_translation(
+            _html_tc, _h_tc = _canvas_2d_translation(
                 [(t_cx, t_cy)], [(new_cx, new_cy)],
                 tx_val, ty_val, is_circle=True, radius=t_r,
             )
-            if fig_tc:
-                st.pyplot(fig_tc, width='stretch')
-                plt.close(fig_tc)
+            if _html_tc:
+                st.components.v1.html(_html_tc, height=_h_tc)
 
         # ══════════════════════════════════════════════════════════════════════
         # POLYGON / POINTS branch
@@ -1700,12 +1688,11 @@ with tab_2d:
 
             # Visualisation
             st.subheader("Visualization")
-            fig_tp = draw_2d_translation(
+            _html_tp, _h_tp = _canvas_2d_translation(
                 trans_pts, new_trans_pts, tx_val, ty_val,
             )
-            if fig_tp:
-                st.pyplot(fig_tp, width='stretch')
-                plt.close(fig_tp)
+            if _html_tp:
+                st.components.v1.html(_html_tp, height=_h_tp)
 
         st.divider()
 
