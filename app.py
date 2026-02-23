@@ -2074,7 +2074,3 @@ st.markdown(
     "</div>",
     unsafe_allow_html=True,
 )
-<<<<<<< HEAD
-#check
-=======
->>>>>>> 8e034f21ae80faf80693489c1b21dc0282688421
