@@ -373,6 +373,7 @@ def draw_circle_grid(pixels, cx, cy, r, title=""):
     plt.tight_layout()
     return fig
 
+@st.cache_data
 def run_dda(x1, y1, x2, y2):
     dx = x2 - x1
     dy = y2 - y1
@@ -401,17 +402,16 @@ def run_dda(x1, y1, x2, y2):
     y_inc = dy / steps
 
     rows = []
-    cx, cy = float(x1), float(y1)
     for i in range(steps + 1):
+        cx = x1 + i * x_inc
+        cy = y1 + i * y_inc
         rows.append({
             "Step (i)": i,
             "x (exact)": round(cx, 4),
             "y (exact)": round(cy, 4),
-            "x (rounded)": round(cx),
-            "y (rounded)": round(cy),
+            "x (rounded)": math.floor(cx + 0.5),
+            "y (rounded)": math.floor(cy + 0.5),
         })
-        cx += x_inc
-        cy += y_inc
 
     return slope_str, slope_note, rows
 
@@ -419,6 +419,7 @@ def run_dda(x1, y1, x2, y2):
 # ══════════════════════════════════════════════════════════════════════════════
 # Bresenham Algorithm
 # ══════════════════════════════════════════════════════════════════════════════
+@st.cache_data
 def run_bresenham(x1, y1, x2, y2):
     dx = abs(x2 - x1)
     dy = abs(y2 - y1)
@@ -589,6 +590,7 @@ def bresenham_zone0(dx0, dy0):
         rows.append({"Step": k + 1, "xᵢ (z0)": xi, "yᵢ (z0)": yi})
     return rows
 
+@st.cache_data
 def run_8way_symmetry(x1, y1, x2, y2):
     dx = x2 - x1; dy = y2 - y1
     zone = detect_zone(dx, dy)
@@ -613,6 +615,7 @@ def eight_points(cx, cy, x, y):
         pts.add((cx + sx, cy + sy))
     return sorted(pts)
 
+@st.cache_data
 def run_midpoint_circle(cx, cy, r):
     r_float = float(r)
     is_int  = isinstance(r, int) or (isinstance(r, float) and r.is_integer())
