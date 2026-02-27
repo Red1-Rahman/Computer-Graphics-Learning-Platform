@@ -363,6 +363,1475 @@ c.fillText(it.l,lx,ly+11);lx+=c.measureText(it.l).width+8;});
     html = '<div><canvas id="cv"></canvas></div><script>' + js + '</script>'
     return html, est_h
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Export Code Snippets (multi-language)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_CODE_SNIPPETS = {
+    # ── DDA ───────────────────────────────────────────────────────────────────
+    "dda": {
+        "Python": '''\
+import math
+
+def run_dda(x1, y1, x2, y2):
+    def round_half_away_from_zero(v: float) -> int:
+        # DDA rounding should be symmetric for negative coordinates.
+        # Using floor(v + 0.5) is only correct for v >= 0.
+        return int(math.floor(v + 0.5)) if v >= 0 else int(math.ceil(v - 0.5))
+
+    dx = x2 - x1
+    dy = y2 - y1
+
+    steps = max(abs(dx), abs(dy))
+
+    if steps == 0:
+        return None, None, [(x1, y1, x1, y1)]
+
+    slope_str = None
+    slope_note = ""
+
+    if dx == 0:
+        slope_str = "undefined (vertical line)"
+        slope_val = None
+    else:
+        slope_val = dy / dx
+        slope_str = f"{dy}/{dx} = {slope_val:.4f}"
+
+    if abs(dx) >= abs(dy):
+        slope_note = f"|slope| <= 1  ->  step along X axis  (steps = {steps})"
+    else:
+        slope_note = f"|slope| > 1  ->  step along Y axis  (steps = {steps})"
+
+    x_inc = dx / steps
+    y_inc = dy / steps
+
+    rows = []
+    for i in range(steps + 1):
+        cx = x1 + i * x_inc
+        cy = y1 + i * y_inc
+        rows.append({
+            "Step (i)": i,
+            "x (exact)": round(cx, 4),
+            "y (exact)": round(cy, 4),
+            "x (rounded)": round_half_away_from_zero(cx),
+            "y (rounded)": round_half_away_from_zero(cy),
+        })
+
+    return slope_str, slope_note, rows
+
+# Example
+slope, note, table = run_dda(1, 1, 8, 5)
+print(f"Slope: {slope}")
+print(note)
+for row in table:
+    print(row)
+''',
+        "C": '''\
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+
+int round_half_away_from_zero(double v) {
+    /* Symmetric rounding for negative coordinates */
+    return v >= 0 ? (int)floor(v + 0.5) : (int)ceil(v - 0.5);
+}
+
+void run_dda(int x1, int y1, int x2, int y2) {
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int steps = abs(dx) > abs(dy) ? abs(dx) : abs(dy);
+
+    if (steps == 0) {
+        printf("Single point: (%d, %d)\\n", x1, y1);
+        return;
+    }
+
+    if (dx == 0)
+        printf("Slope: undefined (vertical line)\\n");
+    else
+        printf("Slope: %d/%d = %.4f\\n", dy, dx, (double)dy / dx);
+
+    if (abs(dx) >= abs(dy))
+        printf("|slope| <= 1  ->  step along X axis  (steps = %d)\\n", steps);
+    else
+        printf("|slope| > 1  ->  step along Y axis  (steps = %d)\\n", steps);
+
+    double x_inc = (double)dx / steps;
+    double y_inc = (double)dy / steps;
+
+    for (int i = 0; i <= steps; i++) {
+        double cx = x1 + i * x_inc;
+        double cy = y1 + i * y_inc;
+        printf("Step %d: exact(%.4f, %.4f)  rounded(%d, %d)\\n",
+               i, cx, cy,
+               round_half_away_from_zero(cx),
+               round_half_away_from_zero(cy));
+    }
+}
+
+int main() {
+    run_dda(1, 1, 8, 5);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include <iomanip>
+
+struct DDARow {
+    int step;
+    double x_exact, y_exact;
+    int x_rounded, y_rounded;
+};
+
+int round_half_away_from_zero(double v) {
+    // Symmetric rounding for negative coordinates
+    return v >= 0 ? static_cast<int>(std::floor(v + 0.5))
+                  : static_cast<int>(std::ceil(v - 0.5));
+}
+
+struct DDAResult {
+    std::string slope_str;
+    std::string slope_note;
+    std::vector<DDARow> rows;
+};
+
+DDAResult run_dda(int x1, int y1, int x2, int y2) {
+    DDAResult result;
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int steps = std::max(std::abs(dx), std::abs(dy));
+
+    if (steps == 0) {
+        result.rows.push_back({0, (double)x1, (double)y1, x1, y1});
+        return result;
+    }
+
+    if (dx == 0)
+        result.slope_str = "undefined (vertical line)";
+    else
+        result.slope_str = std::to_string(dy) + "/" + std::to_string(dx)
+                         + " = " + std::to_string((double)dy / dx);
+
+    if (std::abs(dx) >= std::abs(dy))
+        result.slope_note = "|slope| <= 1  ->  step along X axis  (steps = "
+                          + std::to_string(steps) + ")";
+    else
+        result.slope_note = "|slope| > 1  ->  step along Y axis  (steps = "
+                          + std::to_string(steps) + ")";
+
+    double x_inc = static_cast<double>(dx) / steps;
+    double y_inc = static_cast<double>(dy) / steps;
+
+    for (int i = 0; i <= steps; i++) {
+        double cx = x1 + i * x_inc;
+        double cy = y1 + i * y_inc;
+        result.rows.push_back({
+            i, cx, cy,
+            round_half_away_from_zero(cx),
+            round_half_away_from_zero(cy)
+        });
+    }
+    return result;
+}
+
+int main() {
+    auto res = run_dda(1, 1, 8, 5);
+    std::cout << "Slope: " << res.slope_str << "\\n" << res.slope_note << "\\n";
+    for (auto& r : res.rows)
+        std::cout << "Step " << r.step
+                  << ": exact(" << r.x_exact << ", " << r.y_exact
+                  << ")  rounded(" << r.x_rounded << ", " << r.y_rounded << ")\\n";
+}
+''',
+        "Java": '''\
+import java.util.*;
+
+public class DDA {
+    static int roundHalfAwayFromZero(double v) {
+        // Symmetric rounding for negative coordinates
+        return v >= 0 ? (int) Math.floor(v + 0.5) : (int) Math.ceil(v - 0.5);
+    }
+
+    public static void runDDA(int x1, int y1, int x2, int y2) {
+        int dx = x2 - x1;
+        int dy = y2 - y1;
+        int steps = Math.max(Math.abs(dx), Math.abs(dy));
+
+        if (steps == 0) {
+            System.out.printf("Single point: (%d, %d)%n", x1, y1);
+            return;
+        }
+
+        if (dx == 0)
+            System.out.println("Slope: undefined (vertical line)");
+        else
+            System.out.printf("Slope: %d/%d = %.4f%n", dy, dx, (double) dy / dx);
+
+        if (Math.abs(dx) >= Math.abs(dy))
+            System.out.printf("|slope| <= 1  ->  step along X axis  (steps = %d)%n", steps);
+        else
+            System.out.printf("|slope| > 1  ->  step along Y axis  (steps = %d)%n", steps);
+
+        double xInc = (double) dx / steps;
+        double yInc = (double) dy / steps;
+
+        for (int i = 0; i <= steps; i++) {
+            double cx = x1 + i * xInc;
+            double cy = y1 + i * yInc;
+            System.out.printf("Step %d: exact(%.4f, %.4f)  rounded(%d, %d)%n",
+                    i, cx, cy,
+                    roundHalfAwayFromZero(cx),
+                    roundHalfAwayFromZero(cy));
+        }
+    }
+
+    public static void main(String[] args) {
+        runDDA(1, 1, 8, 5);
+    }
+}
+''',
+    },
+
+    # ── Bresenham ─────────────────────────────────────────────────────────────
+    "bresenham": {
+        "Python": '''\
+def run_bresenham(x1, y1, x2, y2):
+    dx = abs(x2 - x1)
+    dy = abs(y2 - y1)
+
+    sx = 1 if x2 >= x1 else -1
+    sy = 1 if y2 >= y1 else -1
+
+    orig_dx = x2 - x1
+    orig_dy = y2 - y1
+
+    slope_str = None
+    slope_note = ""
+
+    if orig_dx == 0:
+        slope_str = "undefined (vertical line)"
+    else:
+        slope_val = orig_dy / orig_dx
+        slope_str = f"{orig_dy}/{orig_dx} = {slope_val:.4f}"
+
+    rows = []
+
+    # Case: |slope| <= 1  (drive along X)
+    if dx >= dy:
+        slope_note = f"|slope| <= 1  ->  drive along X axis"
+        P = 2 * dy - dx
+        cx, cy = x1, y1
+
+        total_steps = dx
+        for i in range(total_steps):
+            nx = cx + sx
+            if P < 0:
+                ny = cy
+                new_P = P + 2 * dy
+            else:
+                ny = cy + sy
+                new_P = P + 2 * dy - 2 * dx
+
+            rows.append({
+                "i": i, "P": P,
+                "x_i": cx, "y_i": cy,
+                "x_next": nx, "y_next": ny,
+                "Decision": "P < 0 -> y unchanged" if P < 0 else "P >= 0 -> y incremented",
+            })
+            cx, cy, P = nx, ny, new_P
+
+    # Case: |slope| > 1  (drive along Y)
+    else:
+        slope_note = f"|slope| > 1  ->  drive along Y axis"
+        P = 2 * dx - dy
+        cx, cy = x1, y1
+
+        total_steps = dy
+        for i in range(total_steps):
+            ny = cy + sy
+            if P < 0:
+                nx = cx
+                new_P = P + 2 * dx
+            else:
+                nx = cx + sx
+                new_P = P + 2 * dx - 2 * dy
+
+            rows.append({
+                "i": i, "P": P,
+                "x_i": cx, "y_i": cy,
+                "x_next": nx, "y_next": ny,
+                "Decision": "P < 0 -> x unchanged" if P < 0 else "P >= 0 -> x incremented",
+            })
+            cx, cy, P = nx, ny, new_P
+
+    return slope_str, slope_note, rows
+
+# Example
+slope, note, table = run_bresenham(1, 1, 8, 5)
+print(f"Slope: {slope}")
+print(note)
+for row in table:
+    print(row)
+''',
+        "C": '''\
+#include <stdio.h>
+#include <stdlib.h>
+
+void run_bresenham(int x1, int y1, int x2, int y2) {
+    int dx = abs(x2 - x1), dy = abs(y2 - y1);
+    int sx = x2 >= x1 ? 1 : -1;
+    int sy = y2 >= y1 ? 1 : -1;
+
+    int orig_dx = x2 - x1, orig_dy = y2 - y1;
+    if (orig_dx == 0)
+        printf("Slope: undefined (vertical line)\\n");
+    else
+        printf("Slope: %d/%d = %.4f\\n", orig_dy, orig_dx,
+               (double)orig_dy / orig_dx);
+
+    /* Case: |slope| <= 1  (drive along X) */
+    if (dx >= dy) {
+        printf("|slope| <= 1  ->  drive along X axis\\n");
+        int P = 2 * dy - dx;
+        int cx = x1, cy = y1;
+
+        for (int i = 0; i < dx; i++) {
+            int nx = cx + sx, ny, new_P;
+            if (P < 0) {
+                ny = cy;
+                new_P = P + 2 * dy;
+                printf("i=%d  P=%d  (%d,%d)->(%d,%d)  P<0 y unchanged\\n",
+                       i, P, cx, cy, nx, ny);
+            } else {
+                ny = cy + sy;
+                new_P = P + 2 * dy - 2 * dx;
+                printf("i=%d  P=%d  (%d,%d)->(%d,%d)  P>=0 y incremented\\n",
+                       i, P, cx, cy, nx, ny);
+            }
+            cx = nx; cy = ny; P = new_P;
+        }
+    }
+    /* Case: |slope| > 1  (drive along Y) */
+    else {
+        printf("|slope| > 1  ->  drive along Y axis\\n");
+        int P = 2 * dx - dy;
+        int cx = x1, cy = y1;
+
+        for (int i = 0; i < dy; i++) {
+            int ny = cy + sy, nx, new_P;
+            if (P < 0) {
+                nx = cx;
+                new_P = P + 2 * dx;
+                printf("i=%d  P=%d  (%d,%d)->(%d,%d)  P<0 x unchanged\\n",
+                       i, P, cx, cy, nx, ny);
+            } else {
+                nx = cx + sx;
+                new_P = P + 2 * dx - 2 * dy;
+                printf("i=%d  P=%d  (%d,%d)->(%d,%d)  P>=0 x incremented\\n",
+                       i, P, cx, cy, nx, ny);
+            }
+            cx = nx; cy = ny; P = new_P;
+        }
+    }
+}
+
+int main() {
+    run_bresenham(1, 1, 8, 5);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include <string>
+
+struct BresRow {
+    int i, P, x_i, y_i, x_next, y_next;
+    std::string decision;
+};
+
+struct BresResult {
+    std::string slope_str, slope_note;
+    std::vector<BresRow> rows;
+};
+
+BresResult run_bresenham(int x1, int y1, int x2, int y2) {
+    BresResult res;
+    int dx = std::abs(x2 - x1), dy = std::abs(y2 - y1);
+    int sx = x2 >= x1 ? 1 : -1;
+    int sy = y2 >= y1 ? 1 : -1;
+
+    int orig_dx = x2 - x1, orig_dy = y2 - y1;
+    if (orig_dx == 0)
+        res.slope_str = "undefined (vertical line)";
+    else
+        res.slope_str = std::to_string(orig_dy) + "/" + std::to_string(orig_dx)
+                      + " = " + std::to_string((double)orig_dy / orig_dx);
+
+    // Case: |slope| <= 1
+    if (dx >= dy) {
+        res.slope_note = "|slope| <= 1  ->  drive along X axis";
+        int P = 2 * dy - dx;
+        int cx = x1, cy = y1;
+        for (int i = 0; i < dx; i++) {
+            int nx = cx + sx, ny, new_P;
+            std::string dec;
+            if (P < 0) {
+                ny = cy; new_P = P + 2 * dy;
+                dec = "P < 0 -> y unchanged";
+            } else {
+                ny = cy + sy; new_P = P + 2 * dy - 2 * dx;
+                dec = "P >= 0 -> y incremented";
+            }
+            res.rows.push_back({i, P, cx, cy, nx, ny, dec});
+            cx = nx; cy = ny; P = new_P;
+        }
+    }
+    // Case: |slope| > 1
+    else {
+        res.slope_note = "|slope| > 1  ->  drive along Y axis";
+        int P = 2 * dx - dy;
+        int cx = x1, cy = y1;
+        for (int i = 0; i < dy; i++) {
+            int ny = cy + sy, nx, new_P;
+            std::string dec;
+            if (P < 0) {
+                nx = cx; new_P = P + 2 * dx;
+                dec = "P < 0 -> x unchanged";
+            } else {
+                nx = cx + sx; new_P = P + 2 * dx - 2 * dy;
+                dec = "P >= 0 -> x incremented";
+            }
+            res.rows.push_back({i, P, cx, cy, nx, ny, dec});
+            cx = nx; cy = ny; P = new_P;
+        }
+    }
+    return res;
+}
+
+int main() {
+    auto res = run_bresenham(1, 1, 8, 5);
+    std::cout << "Slope: " << res.slope_str << "\\n" << res.slope_note << "\\n";
+    for (auto& r : res.rows)
+        std::cout << "i=" << r.i << "  P=" << r.P
+                  << "  (" << r.x_i << "," << r.y_i << ")->("
+                  << r.x_next << "," << r.y_next << ")  " << r.decision << "\\n";
+}
+''',
+        "Java": '''\
+import java.util.*;
+
+public class Bresenham {
+    public static void runBresenham(int x1, int y1, int x2, int y2) {
+        int dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
+        int sx = x2 >= x1 ? 1 : -1;
+        int sy = y2 >= y1 ? 1 : -1;
+
+        int origDx = x2 - x1, origDy = y2 - y1;
+        if (origDx == 0)
+            System.out.println("Slope: undefined (vertical line)");
+        else
+            System.out.printf("Slope: %d/%d = %.4f%n", origDy, origDx,
+                              (double) origDy / origDx);
+
+        // Case: |slope| <= 1
+        if (dx >= dy) {
+            System.out.println("|slope| <= 1  ->  drive along X axis");
+            int P = 2 * dy - dx;
+            int cx = x1, cy = y1;
+
+            for (int i = 0; i < dx; i++) {
+                int nx = cx + sx, ny, newP;
+                String dec;
+                if (P < 0) {
+                    ny = cy; newP = P + 2 * dy;
+                    dec = "P < 0 -> y unchanged";
+                } else {
+                    ny = cy + sy; newP = P + 2 * dy - 2 * dx;
+                    dec = "P >= 0 -> y incremented";
+                }
+                System.out.printf("i=%d  P=%d  (%d,%d)->(%d,%d)  %s%n",
+                                  i, P, cx, cy, nx, ny, dec);
+                cx = nx; cy = ny; P = newP;
+            }
+        }
+        // Case: |slope| > 1
+        else {
+            System.out.println("|slope| > 1  ->  drive along Y axis");
+            int P = 2 * dx - dy;
+            int cx = x1, cy = y1;
+
+            for (int i = 0; i < dy; i++) {
+                int ny = cy + sy, nx, newP;
+                String dec;
+                if (P < 0) {
+                    nx = cx; newP = P + 2 * dx;
+                    dec = "P < 0 -> x unchanged";
+                } else {
+                    nx = cx + sx; newP = P + 2 * dx - 2 * dy;
+                    dec = "P >= 0 -> x incremented";
+                }
+                System.out.printf("i=%d  P=%d  (%d,%d)->(%d,%d)  %s%n",
+                                  i, P, cx, cy, nx, ny, dec);
+                cx = nx; cy = ny; P = newP;
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        runBresenham(1, 1, 8, 5);
+    }
+}
+''',
+    },
+
+    # ── 8-Way Symmetry ────────────────────────────────────────────────────────
+    "8way": {
+        "Python": '''\
+def detect_zone(dx, dy):
+    if dx >= 0 and dy >= 0: return 0 if dx >= dy else 1
+    elif dx < 0 and dy >= 0: return 2 if dy >= -dx else 3
+    elif dx <= 0 and dy <= 0: return 4 if -dx >= -dy else 5
+    else: return 7 if dx >= -dy else 6
+
+def to_zone0(zone, dx, dy):
+    if zone == 0: return  dx,  dy
+    if zone == 1: return  dy,  dx
+    if zone == 2: return  dy, -dx
+    if zone == 3: return -dx,  dy
+    if zone == 4: return -dx, -dy
+    if zone == 5: return -dy, -dx
+    if zone == 6: return -dy,  dx
+    if zone == 7: return  dx, -dy
+
+def inv_transform(zone, x0, y0, xi, yi):
+    if zone == 0: return x0 + xi, y0 + yi
+    if zone == 1: return x0 + yi, y0 + xi
+    if zone == 2: return x0 - yi, y0 + xi
+    if zone == 3: return x0 - xi, y0 + yi
+    if zone == 4: return x0 - xi, y0 - yi
+    if zone == 5: return x0 - yi, y0 - xi
+    if zone == 6: return x0 + yi, y0 - xi
+    if zone == 7: return x0 + xi, y0 - yi
+
+def bresenham_zone0(dx0, dy0):
+    rows = []
+    xi, yi = 0, 0
+    P = 2 * dy0 - dx0
+    rows.append({"Step": 0, "xi": xi, "yi": yi})
+    for k in range(dx0):
+        xi += 1
+        if P < 0:
+            P = P + 2 * dy0
+        else:
+            yi += 1
+            P = P + 2 * dy0 - 2 * dx0
+        rows.append({"Step": k + 1, "xi": xi, "yi": yi})
+    return rows
+
+def run_8way_symmetry(x1, y1, x2, y2):
+    dx = x2 - x1; dy = y2 - y1
+    zone = detect_zone(dx, dy)
+    dx0, dy0 = to_zone0(zone, dx, dy)
+    z0_pts = bresenham_zone0(dx0, dy0)
+    rows = []
+    for p in z0_pts:
+        xi, yi = p["xi"], p["yi"]
+        ax, ay = inv_transform(zone, x1, y1, xi, yi)
+        rows.append({"Step": p["Step"],
+                     "xi (zone 0)": xi, "yi (zone 0)": yi,
+                     "x (actual)": ax, "y (actual)": ay})
+    return zone, dx0, dy0, rows
+
+# Example
+zone, dx0, dy0, table = run_8way_symmetry(1, 1, 2, 7)
+print(f"Zone {zone}, dx0={dx0}, dy0={dy0}")
+for row in table:
+    print(row)
+''',
+        "C": '''\
+#include <stdio.h>
+#include <stdlib.h>
+
+int detect_zone(int dx, int dy) {
+    if (dx >= 0 && dy >= 0) return dx >= dy ? 0 : 1;
+    if (dx <  0 && dy >= 0) return dy >= -dx ? 2 : 3;
+    if (dx <= 0 && dy <= 0) return -dx >= -dy ? 4 : 5;
+    return dx >= -dy ? 7 : 6;
+}
+
+void to_zone0(int zone, int dx, int dy, int *dx0, int *dy0) {
+    switch (zone) {
+        case 0: *dx0= dx; *dy0= dy; break;  case 1: *dx0= dy; *dy0= dx; break;
+        case 2: *dx0= dy; *dy0=-dx; break;  case 3: *dx0=-dx; *dy0= dy; break;
+        case 4: *dx0=-dx; *dy0=-dy; break;  case 5: *dx0=-dy; *dy0=-dx; break;
+        case 6: *dx0=-dy; *dy0= dx; break;  case 7: *dx0= dx; *dy0=-dy; break;
+    }
+}
+
+void inv_transform(int zone, int x0, int y0, int xi, int yi,
+                   int *ax, int *ay) {
+    switch (zone) {
+        case 0: *ax=x0+xi; *ay=y0+yi; break;  case 1: *ax=x0+yi; *ay=y0+xi; break;
+        case 2: *ax=x0-yi; *ay=y0+xi; break;  case 3: *ax=x0-xi; *ay=y0+yi; break;
+        case 4: *ax=x0-xi; *ay=y0-yi; break;  case 5: *ax=x0-yi; *ay=y0-xi; break;
+        case 6: *ax=x0+yi; *ay=y0-xi; break;  case 7: *ax=x0+xi; *ay=y0-yi; break;
+    }
+}
+
+void run_8way_symmetry(int x1, int y1, int x2, int y2) {
+    int dx = x2 - x1, dy = y2 - y1;
+    int zone = detect_zone(dx, dy);
+    int dx0, dy0;
+    to_zone0(zone, dx, dy, &dx0, &dy0);
+
+    printf("Zone %d, dx0=%d, dy0=%d\\n", zone, dx0, dy0);
+
+    int xi = 0, yi = 0, P = 2 * dy0 - dx0;
+
+    /* Step 0 */
+    int ax, ay;
+    inv_transform(zone, x1, y1, xi, yi, &ax, &ay);
+    printf("Step 0: zone0(%d,%d) -> actual(%d,%d)\\n", xi, yi, ax, ay);
+
+    for (int k = 0; k < dx0; k++) {
+        xi++;
+        if (P < 0) {
+            P += 2 * dy0;
+        } else {
+            yi++;
+            P += 2 * dy0 - 2 * dx0;
+        }
+        inv_transform(zone, x1, y1, xi, yi, &ax, &ay);
+        printf("Step %d: zone0(%d,%d) -> actual(%d,%d)\\n",
+               k + 1, xi, yi, ax, ay);
+    }
+}
+
+int main() {
+    run_8way_symmetry(1, 1, 2, 7);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <vector>
+#include <utility>
+
+int detect_zone(int dx, int dy) {
+    if (dx >= 0 && dy >= 0) return dx >= dy ? 0 : 1;
+    if (dx <  0 && dy >= 0) return dy >= -dx ? 2 : 3;
+    if (dx <= 0 && dy <= 0) return -dx >= -dy ? 4 : 5;
+    return dx >= -dy ? 7 : 6;
+}
+
+std::pair<int,int> to_zone0(int zone, int dx, int dy) {
+    switch (zone) {
+        case 0: return { dx,  dy}; case 1: return { dy,  dx};
+        case 2: return { dy, -dx}; case 3: return {-dx,  dy};
+        case 4: return {-dx, -dy}; case 5: return {-dy, -dx};
+        case 6: return {-dy,  dx}; case 7: return { dx, -dy};
+    }
+    return {dx, dy};
+}
+
+std::pair<int,int> inv_transform(int zone, int x0, int y0, int xi, int yi) {
+    switch (zone) {
+        case 0: return {x0+xi, y0+yi}; case 1: return {x0+yi, y0+xi};
+        case 2: return {x0-yi, y0+xi}; case 3: return {x0-xi, y0+yi};
+        case 4: return {x0-xi, y0-yi}; case 5: return {x0-yi, y0-xi};
+        case 6: return {x0+yi, y0-xi}; case 7: return {x0+xi, y0-yi};
+    }
+    return {x0+xi, y0+yi};
+}
+
+struct SymRow { int step, xi_z0, yi_z0, x_actual, y_actual; };
+
+std::vector<SymRow> run_8way_symmetry(int x1, int y1, int x2, int y2,
+                                      int &zone_out, int &dx0_out, int &dy0_out) {
+    int dx = x2 - x1, dy = y2 - y1;
+    zone_out = detect_zone(dx, dy);
+    auto [dx0, dy0] = to_zone0(zone_out, dx, dy);
+    dx0_out = dx0; dy0_out = dy0;
+
+    std::vector<SymRow> rows;
+    int xi = 0, yi = 0, P = 2 * dy0 - dx0;
+    auto [ax, ay] = inv_transform(zone_out, x1, y1, xi, yi);
+    rows.push_back({0, xi, yi, ax, ay});
+
+    for (int k = 0; k < dx0; k++) {
+        xi++;
+        if (P < 0) { P += 2 * dy0; }
+        else { yi++; P += 2 * dy0 - 2 * dx0; }
+        auto [ax2, ay2] = inv_transform(zone_out, x1, y1, xi, yi);
+        rows.push_back({k + 1, xi, yi, ax2, ay2});
+    }
+    return rows;
+}
+
+int main() {
+    int zone, dx0, dy0;
+    auto rows = run_8way_symmetry(1, 1, 2, 7, zone, dx0, dy0);
+    std::cout << "Zone " << zone << ", dx0=" << dx0 << ", dy0=" << dy0 << "\\n";
+    for (auto& r : rows)
+        std::cout << "Step " << r.step
+                  << ": zone0(" << r.xi_z0 << "," << r.yi_z0
+                  << ") -> actual(" << r.x_actual << "," << r.y_actual << ")\\n";
+}
+''',
+        "Java": '''\
+import java.util.*;
+
+public class Bresenham8Way {
+    static int detectZone(int dx, int dy) {
+        if (dx >= 0 && dy >= 0) return dx >= dy ? 0 : 1;
+        if (dx <  0 && dy >= 0) return dy >= -dx ? 2 : 3;
+        if (dx <= 0 && dy <= 0) return -dx >= -dy ? 4 : 5;
+        return dx >= -dy ? 7 : 6;
+    }
+
+    static int[] toZone0(int zone, int dx, int dy) {
+        return switch (zone) {
+            case 0 -> new int[]{ dx,  dy}; case 1 -> new int[]{ dy,  dx};
+            case 2 -> new int[]{ dy, -dx}; case 3 -> new int[]{-dx,  dy};
+            case 4 -> new int[]{-dx, -dy}; case 5 -> new int[]{-dy, -dx};
+            case 6 -> new int[]{-dy,  dx}; case 7 -> new int[]{ dx, -dy};
+            default -> new int[]{dx, dy};
+        };
+    }
+
+    static int[] invTransform(int zone, int x0, int y0, int xi, int yi) {
+        return switch (zone) {
+            case 0 -> new int[]{x0+xi, y0+yi}; case 1 -> new int[]{x0+yi, y0+xi};
+            case 2 -> new int[]{x0-yi, y0+xi}; case 3 -> new int[]{x0-xi, y0+yi};
+            case 4 -> new int[]{x0-xi, y0-yi}; case 5 -> new int[]{x0-yi, y0-xi};
+            case 6 -> new int[]{x0+yi, y0-xi}; case 7 -> new int[]{x0+xi, y0-yi};
+            default -> new int[]{x0+xi, y0+yi};
+        };
+    }
+
+    public static void run8WaySymmetry(int x1, int y1, int x2, int y2) {
+        int dx = x2 - x1, dy = y2 - y1;
+        int zone = detectZone(dx, dy);
+        int[] z = toZone0(zone, dx, dy);
+        int dx0 = z[0], dy0 = z[1];
+
+        System.out.printf("Zone %d, dx0=%d, dy0=%d%n", zone, dx0, dy0);
+
+        int xi = 0, yi = 0, P = 2 * dy0 - dx0;
+        int[] a = invTransform(zone, x1, y1, xi, yi);
+        System.out.printf("Step 0: zone0(%d,%d) -> actual(%d,%d)%n",
+                          xi, yi, a[0], a[1]);
+
+        for (int k = 0; k < dx0; k++) {
+            xi++;
+            if (P < 0) { P += 2 * dy0; }
+            else { yi++; P += 2 * dy0 - 2 * dx0; }
+            a = invTransform(zone, x1, y1, xi, yi);
+            System.out.printf("Step %d: zone0(%d,%d) -> actual(%d,%d)%n",
+                              k + 1, xi, yi, a[0], a[1]);
+        }
+    }
+
+    public static void main(String[] args) {
+        run8WaySymmetry(1, 1, 2, 7);
+    }
+}
+''',
+    },
+
+    # ── Midpoint Circle ───────────────────────────────────────────────────────
+    "midpoint_circle": {
+        "Python": '''\
+def eight_points(cx, cy, x, y):
+    pts = set()
+    for sx, sy in [(x,y),(-x,y),(x,-y),(-x,-y),(y,x),(-y,x),(y,-x),(-y,-x)]:
+        pts.add((cx + sx, cy + sy))
+    return sorted(pts)
+
+def run_midpoint_circle(cx, cy, r):
+    r_float = float(r)
+    is_int  = isinstance(r, int) or (isinstance(r, float) and r.is_integer())
+    if is_int:
+        P = 1 - int(r_float)
+        p0_str = f"1 - r = 1 - {int(r_float)} = {P}"
+    else:
+        P = round(5/4 - r_float, 6)
+        p0_str = f"5/4 - r = 1.25 - {r_float} = {P}"
+
+    x, y = 0, int(round(r_float))
+    rows = []
+    all_pixels = []
+
+    while x <= y:
+        pts = eight_points(cx, cy, x, y)
+        all_pixels.extend(pts)
+        x_old, y_old, P_old = x, y, P
+        x += 1
+        if P_old < 0:
+            y_new = y_old
+            new_P = P_old + 2 * x_old + 3
+            dec   = "P < 0  ->  y unchanged,  P+1 = P + 2xk + 3"
+        else:
+            y    -= 1
+            y_new = y
+            new_P = P_old + 2 * x_old + 5 - 2 * y_old
+            dec   = "P >= 0  ->  y decremented,  P+1 = P + 2xk + 5 - 2yk"
+        pts_str = ", ".join(f"({px},{py})" for px, py in pts)
+        rows.append({"k": len(rows), "Pk": P_old, "xk": x_old, "yk": y_old,
+                     "x(k+1)": x, "y(k+1)": y_new, "Pk+1": new_P,
+                     "Decision": dec, "8 pixels": pts_str})
+        P = new_P
+
+    seen = set(); unique_pixels = []
+    for pt in all_pixels:
+        if pt not in seen:
+            seen.add(pt); unique_pixels.append(pt)
+    return p0_str, rows, unique_pixels
+
+# Example
+p0, table, pixels = run_midpoint_circle(0, 0, 5)
+print(f"P0: {p0}")
+for row in table:
+    print(row)
+print(f"Total unique pixels: {len(pixels)}")
+''',
+        "C": '''\
+#include <stdio.h>
+
+void plot_eight(int cx, int cy, int x, int y) {
+    printf("  8 pixels: (%d,%d) (%d,%d) (%d,%d) (%d,%d) "
+                       "(%d,%d) (%d,%d) (%d,%d) (%d,%d)\\n",
+           cx+x,cy+y, cx-x,cy+y, cx+x,cy-y, cx-x,cy-y,
+           cx+y,cy+x, cx-y,cy+x, cx+y,cy-x, cx-y,cy-x);
+}
+
+void run_midpoint_circle(int cx, int cy, int r) {
+    int P = 1 - r;
+    printf("P0 = 1 - r = 1 - %d = %d\\n", r, P);
+
+    int x = 0, y = r;
+    int k = 0;
+
+    while (x <= y) {
+        plot_eight(cx, cy, x, y);
+        int x_old = x, y_old = y, P_old = P;
+        x++;
+        if (P_old < 0) {
+            int new_P = P_old + 2 * x_old + 3;
+            printf("k=%d  P=%d  (%d,%d)->(%d,%d)  P<0 y unchanged  P+1=%d\\n",
+                   k, P_old, x_old, y_old, x, y_old, new_P);
+            P = new_P;
+        } else {
+            y--;
+            int new_P = P_old + 2 * x_old + 5 - 2 * y_old;
+            printf("k=%d  P=%d  (%d,%d)->(%d,%d)  P>=0 y decremented  P+1=%d\\n",
+                   k, P_old, x_old, y_old, x, y, new_P);
+            P = new_P;
+        }
+        k++;
+    }
+}
+
+int main() {
+    run_midpoint_circle(0, 0, 5);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <vector>
+#include <set>
+#include <utility>
+#include <string>
+
+struct CircleRow {
+    int k, Pk, xk, yk, x_next, y_next, Pk_next;
+    std::string decision;
+};
+
+std::vector<std::pair<int,int>> eight_points(int cx, int cy, int x, int y) {
+    std::set<std::pair<int,int>> pts;
+    for (auto [sx, sy] : std::initializer_list<std::pair<int,int>>{
+        {x,y},{-x,y},{x,-y},{-x,-y},{y,x},{-y,x},{y,-x},{-y,-x}})
+        pts.emplace(cx + sx, cy + sy);
+    return {pts.begin(), pts.end()};
+}
+
+struct CircleResult {
+    std::string p0_str;
+    std::vector<CircleRow> rows;
+    std::vector<std::pair<int,int>> unique_pixels;
+};
+
+CircleResult run_midpoint_circle(int cx, int cy, int r) {
+    CircleResult res;
+    int P = 1 - r;
+    res.p0_str = "1 - r = 1 - " + std::to_string(r) + " = " + std::to_string(P);
+
+    int x = 0, y = r;
+    std::set<std::pair<int,int>> seen;
+
+    while (x <= y) {
+        auto pts = eight_points(cx, cy, x, y);
+        for (auto& p : pts)
+            if (seen.insert(p).second)
+                res.unique_pixels.push_back(p);
+
+        int x_old = x, y_old = y, P_old = P;
+        x++;
+        int new_P;
+        std::string dec;
+        if (P_old < 0) {
+            new_P = P_old + 2 * x_old + 3;
+            dec = "P < 0 -> y unchanged";
+        } else {
+            y--;
+            new_P = P_old + 2 * x_old + 5 - 2 * y_old;
+            dec = "P >= 0 -> y decremented";
+        }
+        res.rows.push_back({(int)res.rows.size(), P_old, x_old, y_old,
+                            x, P_old < 0 ? y_old : y, new_P, dec});
+        P = new_P;
+    }
+    return res;
+}
+
+int main() {
+    auto res = run_midpoint_circle(0, 0, 5);
+    std::cout << "P0: " << res.p0_str << "\\n";
+    for (auto& r : res.rows)
+        std::cout << "k=" << r.k << "  P=" << r.Pk
+                  << "  (" << r.xk << "," << r.yk << ")->("
+                  << r.x_next << "," << r.y_next << ")  " << r.decision << "\\n";
+    std::cout << "Total unique pixels: " << res.unique_pixels.size() << "\\n";
+}
+''',
+        "Java": '''\
+import java.util.*;
+
+public class MidpointCircle {
+    static List<int[]> eightPoints(int cx, int cy, int x, int y) {
+        Set<String> seen = new LinkedHashSet<>();
+        List<int[]> pts = new ArrayList<>();
+        int[][] offsets = {
+            {x,y},{-x,y},{x,-y},{-x,-y},{y,x},{-y,x},{y,-x},{-y,-x}
+        };
+        for (int[] o : offsets) {
+            String key = (cx+o[0]) + "," + (cy+o[1]);
+            if (seen.add(key))
+                pts.add(new int[]{cx+o[0], cy+o[1]});
+        }
+        return pts;
+    }
+
+    public static void runMidpointCircle(int cx, int cy, int r) {
+        int P = 1 - r;
+        System.out.printf("P0 = 1 - r = 1 - %d = %d%n", r, P);
+
+        int x = 0, y = r, k = 0;
+
+        while (x <= y) {
+            var pts = eightPoints(cx, cy, x, y);
+            int xOld = x, yOld = y, pOld = P;
+            x++;
+            int newP;
+            String dec;
+            if (pOld < 0) {
+                newP = pOld + 2 * xOld + 3;
+                dec = "P < 0 -> y unchanged";
+            } else {
+                y--;
+                newP = pOld + 2 * xOld + 5 - 2 * yOld;
+                dec = "P >= 0 -> y decremented";
+            }
+            System.out.printf("k=%d  P=%d  (%d,%d)->(%d,%d)  %s  P+1=%d%n",
+                              k, pOld, xOld, yOld, x,
+                              pOld < 0 ? yOld : y, dec, newP);
+            P = newP;
+            k++;
+        }
+    }
+
+    public static void main(String[] args) {
+        runMidpointCircle(0, 0, 5);
+    }
+}
+''',
+    },
+
+    # ── 2D Rotation ───────────────────────────────────────────────────────────
+    "rotation_2d": {
+        "Python": '''\
+import math
+
+def run_2d_rotation(points, theta_deg, clockwise=False):
+    """Rotate a list of (x,y) points by theta_deg degrees."""
+    theta = math.radians(theta_deg)
+    if clockwise:
+        theta = -theta
+    cos_t = math.cos(theta)
+    sin_t = math.sin(theta)
+
+    new_points = []
+    for i, (x, y) in enumerate(points):
+        xp = x * cos_t - y * sin_t
+        yp = x * sin_t + y * cos_t
+        new_points.append((round(xp, 4), round(yp, 4)))
+        print(f"Point {i}: ({x}, {y}) -> ({round(xp, 4)}, {round(yp, 4)})")
+
+    return new_points
+
+# Example
+pts = [(1, 1), (2, 2), (3, 3)]
+run_2d_rotation(pts, 45)
+''',
+        "C": '''\
+#include <stdio.h>
+#include <math.h>
+
+#define PI 3.14159265358979323846
+
+void run_2d_rotation(double pts[][2], int n,
+                     double theta_deg, int clockwise,
+                     double result[][2]) {
+    double theta = theta_deg * PI / 180.0;
+    if (clockwise) theta = -theta;
+    double cos_t = cos(theta), sin_t = sin(theta);
+
+    for (int i = 0; i < n; i++) {
+        double x = pts[i][0], y = pts[i][1];
+        result[i][0] = x * cos_t - y * sin_t;
+        result[i][1] = x * sin_t + y * cos_t;
+        printf("Point %d: (%.4f, %.4f) -> (%.4f, %.4f)\\n",
+               i, x, y, result[i][0], result[i][1]);
+    }
+}
+
+int main() {
+    double pts[][2] = {{1,1}, {2,2}, {3,3}};
+    double res[3][2];
+    run_2d_rotation(pts, 3, 45, 0, res);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <cmath>
+#include <vector>
+#include <utility>
+
+const double PI = 3.14159265358979323846;
+
+std::vector<std::pair<double,double>>
+run_2d_rotation(const std::vector<std::pair<double,double>>& points,
+                double theta_deg, bool clockwise = false) {
+    double theta = theta_deg * PI / 180.0;
+    if (clockwise) theta = -theta;
+    double cos_t = std::cos(theta), sin_t = std::sin(theta);
+
+    std::vector<std::pair<double,double>> result;
+    for (int i = 0; i < (int)points.size(); i++) {
+        double x = points[i].first, y = points[i].second;
+        double xp = x * cos_t - y * sin_t;
+        double yp = x * sin_t + y * cos_t;
+        result.emplace_back(xp, yp);
+        std::cout << "Point " << i << ": (" << x << ", " << y
+                  << ") -> (" << xp << ", " << yp << ")\\n";
+    }
+    return result;
+}
+
+int main() {
+    std::vector<std::pair<double,double>> pts = {{1,1},{2,2},{3,3}};
+    run_2d_rotation(pts, 45);
+}
+''',
+        "Java": '''\
+public class Rotation2D {
+    public static double[][] run2DRotation(double[][] points,
+                                           double thetaDeg, boolean clockwise) {
+        double theta = Math.toRadians(thetaDeg);
+        if (clockwise) theta = -theta;
+        double cosT = Math.cos(theta), sinT = Math.sin(theta);
+
+        double[][] result = new double[points.length][2];
+        for (int i = 0; i < points.length; i++) {
+            double x = points[i][0], y = points[i][1];
+            result[i][0] = x * cosT - y * sinT;
+            result[i][1] = x * sinT + y * cosT;
+            System.out.printf("Point %d: (%.4f, %.4f) -> (%.4f, %.4f)%n",
+                              i, x, y, result[i][0], result[i][1]);
+        }
+        return result;
+    }
+
+    public static void main(String[] args) {
+        double[][] pts = {{1,1},{2,2},{3,3}};
+        run2DRotation(pts, 45, false);
+    }
+}
+''',
+    },
+
+    # ── 2D Translation ────────────────────────────────────────────────────────
+    "translation_2d": {
+        "Python": '''\
+POINT_LABELS = list("ABCDEFGHIJ")
+
+def run_2d_translation(points, tx, ty):
+    """Translate a list of (x, y) points by (tx, ty)."""
+    rows = []
+    new_points = []
+    for i, (x, y) in enumerate(points):
+        xp = x + tx
+        yp = y + ty
+        rows.append({
+            "Point": POINT_LABELS[i],
+            "x": x,
+            "y": y,
+            "Tx": tx,
+            "Ty": ty,
+            "x' = x + Tx": round(xp, 4),
+            "y' = y + Ty": round(yp, 4),
+        })
+        new_points.append((round(xp, 4), round(yp, 4)))
+    return rows, new_points
+
+# Example
+rows, new_pts = run_2d_translation([(1, 2), (3, 4), (5, 6)], 10, -5)
+for row in rows:
+    print(row)
+''',
+        "C": '''\
+#include <stdio.h>
+
+void run_2d_translation(double pts[][2], int n,
+                        double tx, double ty,
+                        double result[][2]) {
+    const char labels[] = "ABCDEFGHIJ";
+    for (int i = 0; i < n; i++) {
+        double x = pts[i][0], y = pts[i][1];
+        result[i][0] = x + tx;
+        result[i][1] = y + ty;
+        printf("Point %c: (%.4f, %.4f) + (%.4f, %.4f) = (%.4f, %.4f)\\n",
+               labels[i], x, y, tx, ty, result[i][0], result[i][1]);
+    }
+}
+
+int main() {
+    double pts[][2] = {{1,2},{3,4},{5,6}};
+    double res[3][2];
+    run_2d_translation(pts, 3, 10, -5, res);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <vector>
+#include <utility>
+#include <string>
+
+std::vector<std::pair<double,double>>
+run_2d_translation(const std::vector<std::pair<double,double>>& points,
+                   double tx, double ty) {
+    const std::string labels = "ABCDEFGHIJ";
+    std::vector<std::pair<double,double>> result;
+    for (int i = 0; i < (int)points.size(); i++) {
+        double x = points[i].first, y = points[i].second;
+        double xp = x + tx, yp = y + ty;
+        result.emplace_back(xp, yp);
+        std::cout << "Point " << labels[i]
+                  << ": (" << x << ", " << y << ") + (" << tx << ", " << ty
+                  << ") = (" << xp << ", " << yp << ")\\n";
+    }
+    return result;
+}
+
+int main() {
+    std::vector<std::pair<double,double>> pts = {{1,2},{3,4},{5,6}};
+    run_2d_translation(pts, 10, -5);
+}
+''',
+        "Java": '''\
+public class Translation2D {
+    public static double[][] run2DTranslation(double[][] points,
+                                              double tx, double ty) {
+        String labels = "ABCDEFGHIJ";
+        double[][] result = new double[points.length][2];
+        for (int i = 0; i < points.length; i++) {
+            double x = points[i][0], y = points[i][1];
+            result[i][0] = x + tx;
+            result[i][1] = y + ty;
+            System.out.printf("Point %c: (%.4f, %.4f) + (%.4f, %.4f) = (%.4f, %.4f)%n",
+                              labels.charAt(i), x, y, tx, ty,
+                              result[i][0], result[i][1]);
+        }
+        return result;
+    }
+
+    public static void main(String[] args) {
+        double[][] pts = {{1,2},{3,4},{5,6}};
+        run2DTranslation(pts, 10, -5);
+    }
+}
+''',
+    },
+
+    # ── 3D Rotation ───────────────────────────────────────────────────────────
+    "rotation_3d": {
+        "Python": '''\
+import math
+
+def run_3d_rotation(x, y, z, theta_deg, axis, clockwise=False):
+    """Rotate point (x,y,z) by theta_deg about the given axis."""
+    theta = math.radians(theta_deg)
+    if clockwise:
+        theta = -theta
+    c = round(math.cos(theta), 6)
+    s = round(math.sin(theta), 6)
+
+    if axis == "X":
+        xp, yp, zp = x, y * c - z * s, y * s + z * c
+    elif axis == "Y":
+        xp, yp, zp = x * c + z * s, y, z * c - x * s
+    else:  # Z
+        xp, yp, zp = x * c - y * s, x * s + y * c, z
+
+    print(f"cos(theta) = {c}")
+    print(f"sin(theta) = {s}")
+    print(f"Original: ({x}, {y}, {z})")
+    print(f"Rotated:  ({round(xp, 4)}, {round(yp, 4)}, {round(zp, 4)})")
+    return round(xp, 4), round(yp, 4), round(zp, 4)
+
+# Example
+run_3d_rotation(1, 2, 3, 45, "X")
+''',
+        "C": '''\
+#include <stdio.h>
+#include <math.h>
+
+#define PI 3.14159265358979323846
+
+void run_3d_rotation(double x, double y, double z, double theta_deg,
+                     char axis, int clockwise,
+                     double *xp, double *yp, double *zp) {
+    double theta = theta_deg * PI / 180.0;
+    if (clockwise) theta = -theta;
+    double c = cos(theta), s = sin(theta);
+
+    switch (axis) {
+        case 'X': *xp = x;          *yp = y*c - z*s; *zp = y*s + z*c; break;
+        case 'Y': *xp = x*c + z*s;  *yp = y;         *zp = z*c - x*s; break;
+        case 'Z': *xp = x*c - y*s;  *yp = x*s + y*c; *zp = z;         break;
+    }
+    printf("cos(theta) = %.6f\\n", c);
+    printf("sin(theta) = %.6f\\n", s);
+    printf("Original: (%.4f, %.4f, %.4f)\\n", x, y, z);
+    printf("Rotated:  (%.4f, %.4f, %.4f)\\n", *xp, *yp, *zp);
+}
+
+int main() {
+    double xp, yp, zp;
+    run_3d_rotation(1, 2, 3, 45, 'X', 0, &xp, &yp, &zp);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <cmath>
+#include <tuple>
+
+const double PI = 3.14159265358979323846;
+
+std::tuple<double,double,double>
+run_3d_rotation(double x, double y, double z,
+                double theta_deg, char axis, bool clockwise = false) {
+    double theta = theta_deg * PI / 180.0;
+    if (clockwise) theta = -theta;
+    double c = std::cos(theta), s = std::sin(theta);
+
+    double xp, yp, zp;
+    switch (axis) {
+        case 'X': xp = x;          yp = y*c - z*s; zp = y*s + z*c; break;
+        case 'Y': xp = x*c + z*s;  yp = y;         zp = z*c - x*s; break;
+        case 'Z': xp = x*c - y*s;  yp = x*s + y*c; zp = z;         break;
+    }
+    std::cout << "cos(theta) = " << c << "\\n"
+              << "sin(theta) = " << s << "\\n"
+              << "Original: (" << x << ", " << y << ", " << z << ")\\n"
+              << "Rotated:  (" << xp << ", " << yp << ", " << zp << ")\\n";
+    return {xp, yp, zp};
+}
+
+int main() {
+    run_3d_rotation(1, 2, 3, 45, 'X');
+}
+''',
+        "Java": '''\
+public class Rotation3D {
+    public static double[] run3DRotation(double x, double y, double z,
+                                         double thetaDeg, char axis,
+                                         boolean clockwise) {
+        double theta = Math.toRadians(thetaDeg);
+        if (clockwise) theta = -theta;
+        double c = Math.cos(theta), s = Math.sin(theta);
+
+        double xp, yp, zp;
+        switch (axis) {
+            case 'X': xp = x;          yp = y*c - z*s; zp = y*s + z*c; break;
+            case 'Y': xp = x*c + z*s;  yp = y;         zp = z*c - x*s; break;
+            case 'Z': xp = x*c - y*s;  yp = x*s + y*c; zp = z;         break;
+            default:  xp = x;          yp = y;         zp = z;         break;
+        }
+        System.out.printf("cos(theta) = %.6f%n", c);
+        System.out.printf("sin(theta) = %.6f%n", s);
+        System.out.printf("Original: (%.4f, %.4f, %.4f)%n", x, y, z);
+        System.out.printf("Rotated:  (%.4f, %.4f, %.4f)%n", xp, yp, zp);
+        return new double[]{xp, yp, zp};
+    }
+
+    public static void main(String[] args) {
+        run3DRotation(1, 2, 3, 45, 'X', false);
+    }
+}
+''',
+    },
+
+    # ── 3D Translation ────────────────────────────────────────────────────────
+    "translation_3d": {
+        "Python": '''\
+POINT_LABELS = list("ABCDEFGHIJ")
+
+def run_3d_translation(points, tx, ty, tz):
+    """Translate a list of (x,y,z) points by vector (tx,ty,tz)."""
+    rows = []
+    new_points = []
+    for i, (x, y, z) in enumerate(points):
+        xp = round(x + tx, 4)
+        yp = round(y + ty, 4)
+        zp = round(z + tz, 4)
+        lbl = POINT_LABELS[i]
+        rows.append({"Point": lbl,
+                     "x": x,  "y": y,  "z": z,
+                     "Tx": tx, "Ty": ty, "Tz": tz,
+                     "x' = x+Tx": xp,
+                     "y' = y+Ty": yp,
+                     "z' = z+Tz": zp})
+        new_points.append((xp, yp, zp))
+    return new_points, rows
+
+# Example
+new_pts, table = run_3d_translation([(1, 2, 3), (4, 5, 6)], 10, -5, 2)
+for row in table:
+    print(row)
+''',
+        "C": '''\
+#include <stdio.h>
+
+void run_3d_translation(double pts[][3], int n,
+                        double tx, double ty, double tz,
+                        double result[][3]) {
+    const char labels[] = "ABCDEFGHIJ";
+    for (int i = 0; i < n; i++) {
+        double x = pts[i][0], y = pts[i][1], z = pts[i][2];
+        result[i][0] = x + tx;
+        result[i][1] = y + ty;
+        result[i][2] = z + tz;
+        printf("Point %c: (%.4f, %.4f, %.4f) + (%.4f, %.4f, %.4f)"
+               " = (%.4f, %.4f, %.4f)\\n",
+               labels[i], x, y, z, tx, ty, tz,
+               result[i][0], result[i][1], result[i][2]);
+    }
+}
+
+int main() {
+    double pts[][3] = {{1,2,3},{4,5,6}};
+    double res[2][3];
+    run_3d_translation(pts, 2, 10, -5, 2, res);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <vector>
+#include <tuple>
+#include <string>
+
+std::vector<std::tuple<double,double,double>>
+run_3d_translation(const std::vector<std::tuple<double,double,double>>& points,
+                   double tx, double ty, double tz) {
+    const std::string labels = "ABCDEFGHIJ";
+    std::vector<std::tuple<double,double,double>> result;
+    for (int i = 0; i < (int)points.size(); i++) {
+        auto [x, y, z] = points[i];
+        double xp = x + tx, yp = y + ty, zp = z + tz;
+        result.emplace_back(xp, yp, zp);
+        std::cout << "Point " << labels[i]
+                  << ": (" << x << ", " << y << ", " << z
+                  << ") + (" << tx << ", " << ty << ", " << tz
+                  << ") = (" << xp << ", " << yp << ", " << zp << ")\\n";
+    }
+    return result;
+}
+
+int main() {
+    std::vector<std::tuple<double,double,double>> pts = {{1,2,3},{4,5,6}};
+    run_3d_translation(pts, 10, -5, 2);
+}
+''',
+        "Java": '''\
+public class Translation3D {
+    public static double[][] run3DTranslation(double[][] points,
+                                              double tx, double ty, double tz) {
+        String labels = "ABCDEFGHIJ";
+        double[][] result = new double[points.length][3];
+        for (int i = 0; i < points.length; i++) {
+            double x = points[i][0], y = points[i][1], z = points[i][2];
+            result[i][0] = x + tx;
+            result[i][1] = y + ty;
+            result[i][2] = z + tz;
+            System.out.printf("Point %c: (%.4f, %.4f, %.4f) + (%.4f, %.4f, %.4f)"
+                            + " = (%.4f, %.4f, %.4f)%n",
+                              labels.charAt(i), x, y, z, tx, ty, tz,
+                              result[i][0], result[i][1], result[i][2]);
+        }
+        return result;
+    }
+
+    public static void main(String[] args) {
+        double[][] pts = {{1,2,3},{4,5,6}};
+        run3DTranslation(pts, 10, -5, 2);
+    }
+}
+''',
+    },
+}
+
+_LANG_ICONS = {
+    "Python": "🐍",
+    "C":      "⚙️",
+    "C++":    "⚙️",
+    "Java":   "☕",
+}
+
+def show_export_code(algo_key: str, label: str = "Export Code"):
+    """Render a collapsible export-code section with language tabs."""
+    snippets = _CODE_SNIPPETS.get(algo_key, {})
+    if not snippets:
+        return
+    with st.expander(f"💻  {label}", expanded=False):
+        lang_tabs = list(snippets.keys())
+        tabs = st.tabs([f"{_LANG_ICONS.get(l, '')}  {l}" for l in lang_tabs])
+        for tab, lang in zip(tabs, lang_tabs):
+            with tab:
+                st.code(snippets[lang], language=lang.lower().replace("++", "pp"))
+
+
 @st.cache_data
 def run_dda(x1, y1, x2, y2):
     def round_half_away_from_zero(v: float) -> int:
@@ -1231,6 +2700,7 @@ with tab_line:
 """)
             st.subheader("Iteration Table")
             st.dataframe(pd.DataFrame(dda_rows), width='stretch', hide_index=True)
+            show_export_code("dda", "Export DDA Code")
         st.divider()
 
     # ── Bresenham ─────────────────────────────────────────────────────────────
@@ -1272,6 +2742,7 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
                 st.dataframe(df_b, width='stretch', hide_index=True)
             else:
                 st.info("No steps to display.")
+            show_export_code("bresenham", "Export Bresenham Code")
         st.divider()
 
     # ── 8-Way Symmetry ────────────────────────────────────────────────────────
@@ -1306,6 +2777,7 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
 """)
             st.subheader("Computed Points (Zone 0 → Actual)")
             st.dataframe(pd.DataFrame(sym_rows), width='stretch', hide_index=True)
+            show_export_code("8way", "Export 8-Way Symmetry Code")
         st.divider()
 
     # ── Combined grid ─────────────────────────────────────────────────────────
@@ -1400,6 +2872,8 @@ Loop continues while $x \leq y$.
                              title=f"Midpoint Circle  center=({cx},{cy})  r={r}")
     if _html_c:
         st.components.v1.html(_html_c, height=_h_c)
+
+    show_export_code("midpoint_circle", "Export Midpoint Circle Code")
 
     st.divider()
 
@@ -1518,6 +2992,8 @@ with tab_2d:
             st.pyplot(fig_2d, width='stretch')
             plt.close(fig_2d)
 
+        show_export_code("rotation_2d", "Export 2D Rotation Code")
+
         st.divider()
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1633,6 +3109,8 @@ with tab_2d:
                 st.pyplot(fig_tc, width='stretch')
                 plt.close(fig_tc)
 
+            show_export_code("translation_2d", "Export 2D Translation Code")
+
         # ══════════════════════════════════════════════════════════════════════
         # POLYGON / POINTS branch
         # ══════════════════════════════════════════════════════════════════════
@@ -1692,6 +3170,8 @@ with tab_2d:
             if fig_tp:
                 st.pyplot(fig_tp, width='stretch')
                 plt.close(fig_tp)
+
+            show_export_code("translation_2d", "Export 2D Translation Code")
 
         st.divider()
 
@@ -1837,6 +3317,8 @@ with tab_3d:
                 st.pyplot(fig_3d, width='stretch')
                 plt.close(fig_3d)
 
+            show_export_code("rotation_3d", "Export 3D Rotation Code")
+
         # ══════════════════════════════════════════════════════════════════════
         # MODE 2 — Find Rotation Angle
         # ══════════════════════════════════════════════════════════════════════
@@ -1960,6 +3442,8 @@ with tab_3d:
                     st.pyplot(fig_3d_fa, width='stretch')
                     plt.close(fig_3d_fa)
 
+                show_export_code("rotation_3d", "Export 3D Rotation Code")
+
         st.divider()
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -2055,6 +3539,8 @@ with tab_3d:
         if fig_t3:
             st.pyplot(fig_t3, width='stretch')
             plt.close(fig_t3)
+
+        show_export_code("translation_3d", "Export 3D Translation Code")
 
         st.divider()
 
