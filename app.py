@@ -3025,7 +3025,11 @@ def draw_cohen_sutherland(ox1, oy1, ox2, oy2,
 _ALGO_REGISTRY = [
     {
         "name": "DDA Algorithm",
-        "keywords": ["dda", "digital differential analyzer", "line drawing", "rasterization"],
+        "keywords": [
+            "dda", "digital differential analyzer", "digital differential",
+            "differential analyzer", "line drawing", "line draw",
+            "rasterization", "rasterize", "incremental",
+        ],
         "tab": "╱  Line Drawing",
         "subtab": "╱  Drawing Algorithms",
         "description": "Incremental line rasterization using floating-point x/y increments. Steps along the longer axis and rounds to the nearest pixel.",
@@ -3033,7 +3037,10 @@ _ALGO_REGISTRY = [
     },
     {
         "name": "Bresenham Line Algorithm",
-        "keywords": ["bresenham", "line drawing", "decision parameter", "rasterization", "integer"],
+        "keywords": [
+            "bresenham", "bresenham line", "line drawing", "line draw",
+            "decision parameter", "rasterization", "rasterize", "integer arithmetic",
+        ],
         "tab": "╱  Line Drawing",
         "subtab": "╱  Drawing Algorithms",
         "description": "Integer-only line rasterization using a decision parameter P to avoid floating-point arithmetic.",
@@ -3041,7 +3048,10 @@ _ALGO_REGISTRY = [
     },
     {
         "name": "8-Way Symmetry (Bresenham)",
-        "keywords": ["8way", "8 way", "zone", "symmetry", "octant", "bresenham"],
+        "keywords": [
+            "8way", "8 way", "8-way", "zone", "symmetry", "octant",
+            "bresenham", "bresenham line", "line drawing", "line draw",
+        ],
         "tab": "╱  Line Drawing",
         "subtab": "╱  Drawing Algorithms",
         "description": "Maps any line direction into Zone 0 (slope 0–1), runs Bresenham there, then inverse-transforms the result.",
@@ -3049,7 +3059,10 @@ _ALGO_REGISTRY = [
     },
     {
         "name": "Cohen-Sutherland Line Clipping",
-        "keywords": ["cohen", "sutherland", "clipping", "clip", "viewport", "outcode", "region code"],
+        "keywords": [
+            "cohen", "sutherland", "cohen sutherland", "clipping", "clip",
+            "line clipping", "viewport", "outcode", "region code",
+        ],
         "tab": "╱  Line Drawing",
         "subtab": "✂  Line Clipping",
         "description": "Clips a line segment against a rectangular viewport using 4-bit region outcodes (TOP/BOTTOM/RIGHT/LEFT).",
@@ -3057,7 +3070,10 @@ _ALGO_REGISTRY = [
     },
     {
         "name": "Midpoint Circle Algorithm",
-        "keywords": ["midpoint", "circle", "circle drawing", "8 symmetry", "rasterization", "radius"],
+        "keywords": [
+            "midpoint", "midpoint circle", "circle", "circle drawing", "draw circle",
+            "circular", "8 symmetry", "8-way symmetry", "rasterization", "radius",
+        ],
         "tab": "◯  Circle Drawing",
         "subtab": None,
         "description": "Draws a rasterized circle using a midpoint decision parameter, generating all 8 octants via symmetry.",
@@ -3065,7 +3081,10 @@ _ALGO_REGISTRY = [
     },
     {
         "name": "2D Rotation",
-        "keywords": ["2d rotation", "rotate", "rotation matrix", "ccw", "cw", "angle"],
+        "keywords": [
+            "2d rotation", "2d rotate", "rotate", "rotation", "rotation matrix",
+            "ccw", "cw", "angle", "2d",
+        ],
         "tab": "⊡  2D Transformation",
         "subtab": "↻  2D Rotation",
         "description": "Rotates 2D points by θ degrees (CW or CCW) using the standard 2×2 rotation matrix.",
@@ -3073,7 +3092,10 @@ _ALGO_REGISTRY = [
     },
     {
         "name": "2D Translation",
-        "keywords": ["2d translation", "translate", "shift", "tx", "ty"],
+        "keywords": [
+            "2d translation", "2d translate", "translate", "translation",
+            "shift", "tx", "ty", "2d",
+        ],
         "tab": "⊡  2D Transformation",
         "subtab": "↔  2D Translation",
         "description": "Translates 2D points by (Tx, Ty) using homogeneous coordinate addition.",
@@ -3081,7 +3103,10 @@ _ALGO_REGISTRY = [
     },
     {
         "name": "3D Rotation",
-        "keywords": ["3d rotation", "rotate", "x axis", "y axis", "z axis", "3d"],
+        "keywords": [
+            "3d rotation", "3d rotate", "rotate", "rotation", "rotation matrix",
+            "x axis", "y axis", "z axis", "3d",
+        ],
         "tab": "⬢  3D Transformation",
         "subtab": "↻  3D Rotation",
         "description": "Rotates 3D points about the X, Y, or Z axis using the corresponding 3×3 rotation matrix.",
@@ -3089,7 +3114,10 @@ _ALGO_REGISTRY = [
     },
     {
         "name": "3D Translation",
-        "keywords": ["3d translation", "translate", "shift", "tx", "ty", "tz", "3d"],
+        "keywords": [
+            "3d translation", "3d translate", "translate", "translation",
+            "shift", "tx", "ty", "tz", "3d",
+        ],
         "tab": "⬢  3D Transformation",
         "subtab": "↔  3D Translation",
         "description": "Translates 3D points by (Tx, Ty, Tz) using homogeneous coordinate addition.",
@@ -3106,12 +3134,40 @@ with _search_col:
         key="algo_search",
     )
 
+def _algo_matches(algo: dict, raw_query: str) -> bool:
+    """Return True if raw_query matches the algorithm via any of:
+    1. Phrase match:   query is substring of name or keyword (or vice-versa)
+    2. Word match:     every word in the query appears somewhere in the
+                       combined name + keywords text (useful for compound
+                       queries like 'DDA line drawing').
+    Words shorter than 3 characters are skipped to avoid noise.
+    """
+    q = raw_query.strip().lower()
+    if not q:
+        return False
+    name_l = algo["name"].lower()
+    kws    = algo["keywords"]
+
+    # ── 1. Phrase matching (bidirectional) ──────────────────────────────────
+    if q in name_l:
+        return True
+    for kw in kws:
+        if q in kw or kw in q:      # query ⊆ keyword  OR  keyword ⊆ query
+            return True
+
+    # ── 2. Individual-word matching ─────────────────────────────────────────
+    # Build a single searchable blob from name + all keywords
+    blob = name_l + " " + " ".join(kws)
+    sig_words = [w for w in q.split() if len(w) >= 3]  # ignore tiny words
+    if sig_words and all(w in blob for w in sig_words):
+        return True
+
+    return False
+
+
 if _search_query.strip():
     _q = _search_query.strip().lower()
-    _matches = [
-        a for a in _ALGO_REGISTRY
-        if _q in a["name"].lower() or any(_q in kw for kw in a["keywords"])
-    ]
+    _matches = [a for a in _ALGO_REGISTRY if _algo_matches(a, _search_query)]
     if _matches:
         st.markdown(f"**{len(_matches)} result{'s' if len(_matches) != 1 else ''} for** *\"{_search_query.strip()}\"*")
         for _m in _matches:
