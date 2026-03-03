@@ -1810,6 +1810,197 @@ public class Translation3D {
 }
 ''',
     },
+
+    # ── Cohen-Sutherland Line Clipping ────────────────────────────────────────
+    "cohen_sutherland": {
+        "Python": '''\
+INSIDE = 0
+LEFT   = 1
+RIGHT  = 2
+BOTTOM = 4
+TOP    = 8
+
+def compute_code(x, y, xmin, ymin, xmax, ymax):
+    code = INSIDE
+    if x < xmin:   code |= LEFT
+    elif x > xmax: code |= RIGHT
+    if y < ymin:   code |= BOTTOM
+    elif y > ymax: code |= TOP
+    return code
+
+def cohen_sutherland(x1, y1, x2, y2, xmin, ymin, xmax, ymax):
+    code1 = compute_code(x1, y1, xmin, ymin, xmax, ymax)
+    code2 = compute_code(x2, y2, xmin, ymin, xmax, ymax)
+    while True:
+        if not (code1 | code2):
+            return True, x1, y1, x2, y2   # Accept
+        elif code1 & code2:
+            return False, None, None, None, None  # Reject
+        outside = code1 if code1 else code2
+        if outside & TOP:
+            x = x1 + (x2-x1)*(ymax-y1)/(y2-y1); y = ymax
+        elif outside & BOTTOM:
+            x = x1 + (x2-x1)*(ymin-y1)/(y2-y1); y = ymin
+        elif outside & RIGHT:
+            y = y1 + (y2-y1)*(xmax-x1)/(x2-x1); x = xmax
+        elif outside & LEFT:
+            y = y1 + (y2-y1)*(xmin-x1)/(x2-x1); x = xmin
+        if outside == code1:
+            x1, y1 = x, y; code1 = compute_code(x1, y1, xmin, ymin, xmax, ymax)
+        else:
+            x2, y2 = x, y; code2 = compute_code(x2, y2, xmin, ymin, xmax, ymax)
+
+# Example
+accepted, cx1, cy1, cx2, cy2 = cohen_sutherland(
+    x1=2, y1=1, x2=9, y2=8, xmin=3, ymin=2, xmax=7, ymax=6)
+if accepted:
+    print(f"Clipped line: ({cx1:.4f},{cy1:.4f}) -> ({cx2:.4f},{cy2:.4f})")
+else:
+    print("Line completely outside — rejected")
+''',
+        "C": '''\
+#include <stdio.h>
+
+#define INSIDE 0
+#define LEFT   1
+#define RIGHT  2
+#define BOTTOM 4
+#define TOP    8
+
+int compute_code(double x, double y,
+                 double xmin, double ymin,
+                 double xmax, double ymax) {
+    int code = INSIDE;
+    if (x < xmin)      code |= LEFT;
+    else if (x > xmax) code |= RIGHT;
+    if (y < ymin)      code |= BOTTOM;
+    else if (y > ymax) code |= TOP;
+    return code;
+}
+
+int cohen_sutherland(double *x1, double *y1, double *x2, double *y2,
+                     double xmin, double ymin, double xmax, double ymax) {
+    int code1 = compute_code(*x1,*y1,xmin,ymin,xmax,ymax);
+    int code2 = compute_code(*x2,*y2,xmin,ymin,xmax,ymax);
+    while (1) {
+        if (!(code1 | code2)) return 1;   /* Accept */
+        if (code1 & code2)    return 0;   /* Reject */
+        int outside = code1 ? code1 : code2;
+        double x, y;
+        if (outside & TOP) {
+            x = *x1 + (*x2-*x1)*(ymax-*y1)/(*y2-*y1); y = ymax;
+        } else if (outside & BOTTOM) {
+            x = *x1 + (*x2-*x1)*(ymin-*y1)/(*y2-*y1); y = ymin;
+        } else if (outside & RIGHT) {
+            y = *y1 + (*y2-*y1)*(xmax-*x1)/(*x2-*x1); x = xmax;
+        } else {
+            y = *y1 + (*y2-*y1)*(xmin-*x1)/(*x2-*x1); x = xmin;
+        }
+        if (outside == code1) { *x1=x; *y1=y; code1=compute_code(x,y,xmin,ymin,xmax,ymax); }
+        else                  { *x2=x; *y2=y; code2=compute_code(x,y,xmin,ymin,xmax,ymax); }
+    }
+}
+
+int main(void) {
+    double x1=2,y1=1,x2=9,y2=8;
+    if (cohen_sutherland(&x1,&y1,&x2,&y2, 3,2,7,6))
+        printf("Clipped: (%.4f,%.4f)->(%.4f,%.4f)\\n",x1,y1,x2,y2);
+    else
+        printf("Rejected\\n");
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <optional>
+#include <tuple>
+
+constexpr int INSIDE=0, LEFT=1, RIGHT=2, BOTTOM=4, TOP=8;
+
+int compute_code(double x, double y,
+                 double xmin, double ymin,
+                 double xmax, double ymax) {
+    int code = INSIDE;
+    if (x < xmin)      code |= LEFT;
+    else if (x > xmax) code |= RIGHT;
+    if (y < ymin)      code |= BOTTOM;
+    else if (y > ymax) code |= TOP;
+    return code;
+}
+
+std::optional<std::tuple<double,double,double,double>>
+cohen_sutherland(double x1, double y1, double x2, double y2,
+                 double xmin, double ymin, double xmax, double ymax) {
+    int code1 = compute_code(x1,y1,xmin,ymin,xmax,ymax);
+    int code2 = compute_code(x2,y2,xmin,ymin,xmax,ymax);
+    while (true) {
+        if (!(code1|code2)) return std::make_tuple(x1,y1,x2,y2);
+        if (code1&code2)    return std::nullopt;
+        int outside = code1 ? code1 : code2;
+        double x=0, y=0;
+        if      (outside & TOP)    { x=x1+(x2-x1)*(ymax-y1)/(y2-y1); y=ymax; }
+        else if (outside & BOTTOM) { x=x1+(x2-x1)*(ymin-y1)/(y2-y1); y=ymin; }
+        else if (outside & RIGHT)  { y=y1+(y2-y1)*(xmax-x1)/(x2-x1); x=xmax; }
+        else                       { y=y1+(y2-y1)*(xmin-x1)/(x2-x1); x=xmin; }
+        if (outside == code1) { x1=x; y1=y; code1=compute_code(x,y,xmin,ymin,xmax,ymax); }
+        else                  { x2=x; y2=y; code2=compute_code(x,y,xmin,ymin,xmax,ymax); }
+    }
+}
+
+int main() {
+    auto res = cohen_sutherland(2,1,9,8, 3,2,7,6);
+    if (res) {
+        auto [cx1,cy1,cx2,cy2] = *res;
+        std::cout << "Clipped: (" << cx1 << "," << cy1
+                  << ")->(" << cx2 << "," << cy2 << ")\\n";
+    } else {
+        std::cout << "Rejected\\n";
+    }
+}
+''',
+        "Java": '''\
+public class CohenSutherland {
+    static final int INSIDE=0, LEFT=1, RIGHT=2, BOTTOM=4, TOP=8;
+
+    static int computeCode(double x, double y,
+                           double xmin, double ymin,
+                           double xmax, double ymax) {
+        int code = INSIDE;
+        if (x < xmin)      code |= LEFT;
+        else if (x > xmax) code |= RIGHT;
+        if (y < ymin)      code |= BOTTOM;
+        else if (y > ymax) code |= TOP;
+        return code;
+    }
+
+    static double[] clip(double x1, double y1, double x2, double y2,
+                         double xmin, double ymin, double xmax, double ymax) {
+        int code1 = computeCode(x1,y1,xmin,ymin,xmax,ymax);
+        int code2 = computeCode(x2,y2,xmin,ymin,xmax,ymax);
+        while (true) {
+            if ((code1|code2) == 0) return new double[]{x1,y1,x2,y2};
+            if ((code1&code2) != 0) return null;
+            int outside = (code1 != 0) ? code1 : code2;
+            double x=0, y=0;
+            if      ((outside & TOP)    != 0) { x=x1+(x2-x1)*(ymax-y1)/(y2-y1); y=ymax; }
+            else if ((outside & BOTTOM) != 0) { x=x1+(x2-x1)*(ymin-y1)/(y2-y1); y=ymin; }
+            else if ((outside & RIGHT)  != 0) { y=y1+(y2-y1)*(xmax-x1)/(x2-x1); x=xmax; }
+            else                              { y=y1+(y2-y1)*(xmin-x1)/(x2-x1); x=xmin; }
+            if (outside == code1) { x1=x; y1=y; code1=computeCode(x,y,xmin,ymin,xmax,ymax); }
+            else                  { x2=x; y2=y; code2=computeCode(x,y,xmin,ymin,xmax,ymax); }
+        }
+    }
+
+    public static void main(String[] args) {
+        double[] r = clip(2,1,9,8, 3,2,7,6);
+        if (r != null)
+            System.out.printf("Clipped: (%.4f,%.4f)->(%.4f,%.4f)%n",r[0],r[1],r[2],r[3]);
+        else
+            System.out.println("Rejected");
+    }
+}
+''',
+    },
 }
 
 _LANG_ICONS = {
@@ -2119,6 +2310,108 @@ def run_midpoint_circle(cx, cy, r):
         if pt not in seen:
             seen.add(pt); unique_pixels.append(pt)
     return p0_str, rows, unique_pixels
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Cohen-Sutherland Line Clipping
+# ══════════════════════════════════════════════════════════════════════════════
+
+_CS_INSIDE = 0
+_CS_LEFT   = 1
+_CS_RIGHT  = 2
+_CS_BOTTOM = 4
+_CS_TOP    = 8
+
+
+def _cs_compute_code(x, y, xmin, ymin, xmax, ymax):
+    code = _CS_INSIDE
+    if x < xmin:
+        code |= _CS_LEFT
+    elif x > xmax:
+        code |= _CS_RIGHT
+    if y < ymin:
+        code |= _CS_BOTTOM
+    elif y > ymax:
+        code |= _CS_TOP
+    return code
+
+
+@st.cache_data
+def run_cohen_sutherland(x1, y1, x2, y2, xmin, ymin, xmax, ymax):
+    """
+    Clip line (x1,y1)→(x2,y2) against rectangle [xmin,xmax]×[ymin,ymax].
+    Returns (rows, clipped_p1, clipped_p2).  clipped_p1/p2 are None if rejected.
+    """
+    code1 = _cs_compute_code(x1, y1, xmin, ymin, xmax, ymax)
+    code2 = _cs_compute_code(x2, y2, xmin, ymin, xmax, ymax)
+
+    rows = []
+    iteration = 0
+    accepted = False
+
+    while True:
+        iteration += 1
+
+        if not (code1 | code2):
+            accepted = True
+            rows.append({
+                "Iteration": iteration,
+                "x₁": round(x1, 4), "y₁": round(y1, 4),
+                "x₂": round(x2, 4), "y₂": round(y2, 4),
+                "code₁": f"{code1:04b}", "code₂": f"{code2:04b}",
+                "Decision": "Accept — both endpoints inside viewport",
+            })
+            break
+
+        elif code1 & code2:
+            rows.append({
+                "Iteration": iteration,
+                "x₁": round(x1, 4), "y₁": round(y1, 4),
+                "x₂": round(x2, 4), "y₂": round(y2, 4),
+                "code₁": f"{code1:04b}", "code₂": f"{code2:04b}",
+                "Decision": "Reject — both endpoints share an outside region",
+            })
+            break
+
+        else:
+            outside_code = code1 if code1 else code2
+
+            if outside_code & _CS_TOP:
+                x = x1 + (x2 - x1) * (ymax - y1) / (y2 - y1)
+                y = ymax
+                decision = f"Clip TOP: new y = {ymax}"
+            elif outside_code & _CS_BOTTOM:
+                x = x1 + (x2 - x1) * (ymin - y1) / (y2 - y1)
+                y = ymin
+                decision = f"Clip BOTTOM: new y = {ymin}"
+            elif outside_code & _CS_RIGHT:
+                y = y1 + (y2 - y1) * (xmax - x1) / (x2 - x1)
+                x = xmax
+                decision = f"Clip RIGHT: new x = {xmax}"
+            elif outside_code & _CS_LEFT:
+                y = y1 + (y2 - y1) * (xmin - x1) / (x2 - x1)
+                x = xmin
+                decision = f"Clip LEFT: new x = {xmin}"
+
+            rows.append({
+                "Iteration": iteration,
+                "x₁": round(x1, 4), "y₁": round(y1, 4),
+                "x₂": round(x2, 4), "y₂": round(y2, 4),
+                "code₁": f"{code1:04b}", "code₂": f"{code2:04b}",
+                "Decision": decision,
+            })
+
+            if outside_code == code1:
+                x1, y1 = x, y
+                code1 = _cs_compute_code(x1, y1, xmin, ymin, xmax, ymax)
+            else:
+                x2, y2 = x, y
+                code2 = _cs_compute_code(x2, y2, xmin, ymin, xmax, ymax)
+
+    if accepted:
+        return rows, (round(x1, 4), round(y1, 4)), (round(x2, 4), round(y2, 4))
+    else:
+        return rows, None, None
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2641,6 +2934,203 @@ def draw_3d_translation(points, new_points, tx, ty, tz):
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Cohen-Sutherland Visualization
+# ══════════════════════════════════════════════════════════════════════════════
+
+def draw_cohen_sutherland(ox1, oy1, ox2, oy2,
+                          xmin, ymin, xmax, ymax,
+                          clip_p1, clip_p2):
+    """
+    Draw the viewport rectangle, the original line, and the clipped segment.
+    """
+    fig, ax = plt.subplots(figsize=(6, 6))
+    fig.patch.set_facecolor("#0e1117")
+    ax.set_facecolor("#1a1d23")
+
+    # ── Viewport rectangle ───────────────────────────────────────────────────
+    rect = mpatches.Rectangle(
+        (xmin, ymin), xmax - xmin, ymax - ymin,
+        linewidth=2, edgecolor="#f39c12", facecolor="#f39c1215", zorder=2,
+    )
+    ax.add_patch(rect)
+
+    # ── Region labels (outside corners) ──────────────────────────────────────
+    pad = (xmax - xmin) * 0.08
+    for lbl, lx, ly in [
+        ("LEFT", xmin - pad, (ymin + ymax) / 2),
+        ("RIGHT", xmax + pad, (ymin + ymax) / 2),
+        ("BOTTOM", (xmin + xmax) / 2, ymin - pad),
+        ("TOP",    (xmin + xmax) / 2, ymax + pad),
+    ]:
+        ax.text(lx, ly, lbl, color="#888888", fontsize=7,
+                ha="center", va="center")
+
+    # ── Original (full) line ─────────────────────────────────────────────────
+    ax.plot([ox1, ox2], [oy1, oy2],
+            color="#e74c3c", linewidth=1.4, linestyle="--",
+            label="Original line", zorder=3, alpha=0.8)
+    ax.scatter([ox1, ox2], [oy1, oy2],
+               color="#e74c3c", s=50, zorder=5)
+    ax.text(ox1, oy1, f"  P1({ox1},{oy1})", color="#e74c3c",
+            fontsize=8, va="bottom")
+    ax.text(ox2, oy2, f"  P2({ox2},{oy2})", color="#e74c3c",
+            fontsize=8, va="bottom")
+
+    # ── Clipped segment ───────────────────────────────────────────────────────
+    if clip_p1 is not None and clip_p2 is not None:
+        cx1, cy1 = clip_p1
+        cx2, cy2 = clip_p2
+        ax.plot([cx1, cx2], [cy1, cy2],
+                color="#2ecc71", linewidth=2.5,
+                label="Clipped segment", zorder=4)
+        ax.scatter([cx1, cx2], [cy1, cy2],
+                   color="#2ecc71", s=70, zorder=6,
+                   edgecolors="#27ae60", linewidths=1)
+        ax.text(cx1, cy1, f"  C1({cx1},{cy1})", color="#2ecc71",
+                fontsize=8, va="top")
+        ax.text(cx2, cy2, f"  C2({cx2},{cy2})", color="#2ecc71",
+                fontsize=8, va="top")
+    else:
+        ax.text((xmin + xmax) / 2, (ymin + ymax) / 2,
+                "Line Rejected", color="#e74c3c",
+                fontsize=13, ha="center", va="center", fontweight="bold",
+                alpha=0.7)
+
+    # ── Axes / grid/style ─────────────────────────────────────────────────────
+    margin = max((xmax - xmin), (ymax - ymin)) * 0.35
+    ax.set_xlim(xmin - margin, xmax + margin)
+    ax.set_ylim(ymin - margin, ymax + margin)
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.grid(True, color="#2a2d35", linewidth=0.5, linestyle="--")
+    ax.axhline(0, color="#333333", linewidth=0.6)
+    ax.axvline(0, color="#333333", linewidth=0.6)
+    ax.tick_params(colors="#777777", labelsize=8)
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#333333")
+
+    ax.set_title(
+        f"Cohen-Sutherland Clipping  —  viewport [{xmin},{xmax}]×[{ymin},{ymax}]",
+        color="#dddddd", fontsize=10, pad=10,
+    )
+    legend = ax.legend(facecolor="#1a1d23", edgecolor="#333333",
+                       labelcolor="#cccccc", fontsize=8)
+    plt.tight_layout()
+    return fig
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SEARCH BAR
+# ══════════════════════════════════════════════════════════════════════════════
+
+_ALGO_REGISTRY = [
+    {
+        "name": "DDA Algorithm",
+        "keywords": ["dda", "digital differential analyzer", "line drawing", "rasterization"],
+        "tab": "╱  Line Drawing",
+        "subtab": "╱  Drawing Algorithms",
+        "description": "Incremental line rasterization using floating-point x/y increments. Steps along the longer axis and rounds to the nearest pixel.",
+        "icon": "╱",
+    },
+    {
+        "name": "Bresenham Line Algorithm",
+        "keywords": ["bresenham", "line drawing", "decision parameter", "rasterization", "integer"],
+        "tab": "╱  Line Drawing",
+        "subtab": "╱  Drawing Algorithms",
+        "description": "Integer-only line rasterization using a decision parameter P to avoid floating-point arithmetic.",
+        "icon": "╱",
+    },
+    {
+        "name": "8-Way Symmetry (Bresenham)",
+        "keywords": ["8way", "8 way", "zone", "symmetry", "octant", "bresenham"],
+        "tab": "╱  Line Drawing",
+        "subtab": "╱  Drawing Algorithms",
+        "description": "Maps any line direction into Zone 0 (slope 0–1), runs Bresenham there, then inverse-transforms the result.",
+        "icon": "╱",
+    },
+    {
+        "name": "Cohen-Sutherland Line Clipping",
+        "keywords": ["cohen", "sutherland", "clipping", "clip", "viewport", "outcode", "region code"],
+        "tab": "╱  Line Drawing",
+        "subtab": "✂  Line Clipping",
+        "description": "Clips a line segment against a rectangular viewport using 4-bit region outcodes (TOP/BOTTOM/RIGHT/LEFT).",
+        "icon": "✂",
+    },
+    {
+        "name": "Midpoint Circle Algorithm",
+        "keywords": ["midpoint", "circle", "circle drawing", "8 symmetry", "rasterization", "radius"],
+        "tab": "◯  Circle Drawing",
+        "subtab": None,
+        "description": "Draws a rasterized circle using a midpoint decision parameter, generating all 8 octants via symmetry.",
+        "icon": "◯",
+    },
+    {
+        "name": "2D Rotation",
+        "keywords": ["2d rotation", "rotate", "rotation matrix", "ccw", "cw", "angle"],
+        "tab": "⊡  2D Transformation",
+        "subtab": "↻  2D Rotation",
+        "description": "Rotates 2D points by θ degrees (CW or CCW) using the standard 2×2 rotation matrix.",
+        "icon": "↻",
+    },
+    {
+        "name": "2D Translation",
+        "keywords": ["2d translation", "translate", "shift", "tx", "ty"],
+        "tab": "⊡  2D Transformation",
+        "subtab": "↔  2D Translation",
+        "description": "Translates 2D points by (Tx, Ty) using homogeneous coordinate addition.",
+        "icon": "↔",
+    },
+    {
+        "name": "3D Rotation",
+        "keywords": ["3d rotation", "rotate", "x axis", "y axis", "z axis", "3d"],
+        "tab": "⬢  3D Transformation",
+        "subtab": "↻  3D Rotation",
+        "description": "Rotates 3D points about the X, Y, or Z axis using the corresponding 3×3 rotation matrix.",
+        "icon": "↻",
+    },
+    {
+        "name": "3D Translation",
+        "keywords": ["3d translation", "translate", "shift", "tx", "ty", "tz", "3d"],
+        "tab": "⬢  3D Transformation",
+        "subtab": "↔  3D Translation",
+        "description": "Translates 3D points by (Tx, Ty, Tz) using homogeneous coordinate addition.",
+        "icon": "↔",
+    },
+]
+
+_spacer, _search_col = st.columns([3, 1])
+with _search_col:
+    _search_query = st.text_input(
+        label="search_algorithms_input",
+        placeholder="🔍  Search algorithms…",
+        label_visibility="collapsed",
+        key="algo_search",
+    )
+
+if _search_query.strip():
+    _q = _search_query.strip().lower()
+    _matches = [
+        a for a in _ALGO_REGISTRY
+        if _q in a["name"].lower() or any(_q in kw for kw in a["keywords"])
+    ]
+    if _matches:
+        st.markdown(f"**{len(_matches)} result{'s' if len(_matches) != 1 else ''} for** *\"{_search_query.strip()}\"*")
+        for _m in _matches:
+            _nav = f"**{_m['tab']}**"
+            if _m["subtab"]:
+                _nav += f"  →  **{_m['subtab']}**"
+            with st.container(border=True):
+                _c1, _c2 = st.columns([1, 8])
+                _c1.markdown(f"<div style='font-size:2rem;text-align:center'>{_m['icon']}</div>",
+                             unsafe_allow_html=True)
+                with _c2:
+                    st.markdown(f"#### {_m['name']}")
+                    st.caption(_m["description"])
+                    st.markdown(f"📍 Navigate to: {_nav}")
+    else:
+        st.info(f"No algorithms matched **\"{_search_query.strip()}\"**. Try 'DDA', 'Bresenham', 'circle', 'clipping', 'rotation', or 'translation'.")
+    st.divider()
+
+# ══════════════════════════════════════════════════════════════════════════════
 # TAB LAYOUT
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -2656,6 +3146,12 @@ tab_line, tab_circle, tab_2d, tab_3d = st.tabs([
 # TAB 1 — Line Drawing
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_line:
+    subtab_line_draw, subtab_line_clip = st.tabs([
+        "╱  Drawing Algorithms",
+        "✂  Line Clipping",
+    ])
+
+with subtab_line_draw:
     st.header("Input Points")
     col1, col2, col3, col4 = st.columns(4)
     with col1: x1 = st.number_input("x₁ (start)", value=1, step=1, key="lx1")
@@ -2805,6 +3301,103 @@ $$P_0 = 2\\Delta x - \\Delta y = 2\\times{dx_abs} - {dy_abs} = {2*dx_abs - dy_ab
                                           title=f"({x1},{y1}) → ({x2},{y2})")
                     if _html:
                         st.components.v1.html(_html, height=_h)
+        st.divider()
+
+
+with subtab_line_clip:
+    section_header("Cohen-Sutherland Line Clipping", "tba", "tba")
+
+    st.header("Viewport (Clip Rectangle)")
+    vc1, vc2, vc3, vc4 = st.columns(4)
+    with vc1: cs_xmin = st.number_input("x_min", value=3,  step=1, key="cs_xmin")
+    with vc2: cs_ymin = st.number_input("y_min", value=2,  step=1, key="cs_ymin")
+    with vc3: cs_xmax = st.number_input("x_max", value=7,  step=1, key="cs_xmax")
+    with vc4: cs_ymax = st.number_input("y_max", value=6,  step=1, key="cs_ymax")
+
+    st.header("Line Endpoints")
+    lc1, lc2, lc3, lc4 = st.columns(4)
+    with lc1: cs_x1 = st.number_input("x₁", value=2, step=1, key="cs_x1")
+    with lc2: cs_y1 = st.number_input("y₁", value=1, step=1, key="cs_y1")
+    with lc3: cs_x2 = st.number_input("x₂", value=9, step=1, key="cs_x2")
+    with lc4: cs_y2 = st.number_input("y₂", value=8, step=1, key="cs_y2")
+
+    cs_xmin = float(cs_xmin); cs_ymin = float(cs_ymin)
+    cs_xmax = float(cs_xmax); cs_ymax = float(cs_ymax)
+    cs_x1   = float(cs_x1);   cs_y1   = float(cs_y1)
+    cs_x2   = float(cs_x2);   cs_y2   = float(cs_y2)
+
+    if cs_xmin >= cs_xmax or cs_ymin >= cs_ymax:
+        st.error("Invalid viewport: x_min must be < x_max and y_min must be < y_max.")
+    else:
+        st.divider()
+
+        with st.expander("Region Code Reference (TBRL bits)"):
+            st.markdown(r"""
+Each endpoint is assigned a 4-bit **outcode**:
+
+| Bit | Value | Region |
+|-----|-------|--------|
+| bit 3 (MSB) | 1000 = **8** | Above TOP edge ($y > y_{max}$) |
+| bit 2        | 0100 = **4** | Below BOTTOM edge ($y < y_{min}$) |
+| bit 1        | 0010 = **2** | Right of RIGHT edge ($x > x_{max}$) |
+| bit 0 (LSB) | 0001 = **1** | Left of LEFT edge ($x < x_{min}$) |
+
+- Both codes `0000` → **Accept** the full line  
+- `code1 & code2 ≠ 0` → **Reject** (line entirely outside one region)  
+- Otherwise → **Clip** against the boundary indicated by the outside endpoint’s code
+""")
+
+        st.subheader("Endpoint Region Codes")
+        oc1 = _cs_compute_code(cs_x1, cs_y1, cs_xmin, cs_ymin, cs_xmax, cs_ymax)
+        oc2 = _cs_compute_code(cs_x2, cs_y2, cs_xmin, cs_ymin, cs_xmax, cs_ymax)
+        cc1, cc2, cc3 = st.columns(3)
+        cc1.metric(f"code₁  P1({cs_x1}, {cs_y1})", f"{oc1:04b}  ({oc1})")
+        cc2.metric(f"code₂  P2({cs_x2}, {cs_y2})", f"{oc2:04b}  ({oc2})")
+        and_val = oc1 & oc2
+        or_val  = oc1 | oc2
+        cc3.metric("code₁ | code₂", f"{or_val:04b}  &  {and_val:04b}")
+        if not or_val:
+            st.success("Both endpoints are **inside** the viewport — line trivially accepted.")
+        elif and_val:
+            st.error("Both endpoints share an outside region — line trivially **rejected**.")
+        else:
+            st.info("Endpoints are in different regions — clipping loop required.")
+
+        st.divider()
+
+        cs_rows, clip_p1, clip_p2 = run_cohen_sutherland(
+            cs_x1, cs_y1, cs_x2, cs_y2,
+            cs_xmin, cs_ymin, cs_xmax, cs_ymax,
+        )
+
+        st.subheader("Iteration Table")
+        st.dataframe(pd.DataFrame(cs_rows), width="stretch", hide_index=True)
+
+        st.divider()
+
+        st.subheader("Result")
+        if clip_p1 is not None:
+            rs1, rs2, rs3, rs4 = st.columns(4)
+            rs1.metric("Clipped x₁", clip_p1[0])
+            rs2.metric("Clipped y₁", clip_p1[1])
+            rs3.metric("Clipped x₂", clip_p2[0])
+            rs4.metric("Clipped y₂", clip_p2[1])
+        else:
+            st.error("Line is entirely outside the viewport — **rejected**.")
+
+        st.divider()
+
+        st.subheader("Visualization")
+        fig_cs = draw_cohen_sutherland(
+            cs_x1, cs_y1, cs_x2, cs_y2,
+            cs_xmin, cs_ymin, cs_xmax, cs_ymax,
+            clip_p1, clip_p2,
+        )
+        st.pyplot(fig_cs, use_container_width=False)
+        plt.close(fig_cs)
+
+        show_export_code("cohen_sutherland", "Export Cohen-Sutherland Code")
+
         st.divider()
 
 
@@ -3545,6 +4138,7 @@ with tab_3d:
         st.divider()
 
 
+# ─────────────────────────────────────────────────────────────────────────────
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.divider()
 st.markdown(
