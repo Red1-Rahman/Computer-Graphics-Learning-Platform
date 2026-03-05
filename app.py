@@ -3421,10 +3421,10 @@ $$x = x_1 + \\frac{{1}}{{m}} \\cdot (y_{{boundary}} - y_1) = x_1 + \\frac{{\\Del
 
 | Boundary | Known | Formula applied |
 |----------|-------|-----------------|
-| LEFT  ($x = x_{{min}} = {cs_xmin}$) | $x$ | $y = y_1 + \\dfrac{{\\Delta y}}{{\\Delta x}}(x_{{min}} - x_1)$ |
-| RIGHT ($x = x_{{max}} = {cs_xmax}$) | $x$ | $y = y_1 + \\dfrac{{\\Delta y}}{{\\Delta x}}(x_{{max}} - x_1)$ |
-| BOTTOM ($y = y_{{min}} = {cs_ymin}$) | $y$ | $x = x_1 + \\dfrac{{\\Delta x}}{{\\Delta y}}(y_{{min}} - y_1)$ |
-| TOP  ($y = y_{{max}} = {cs_ymax}$) | $y$ | $x = x_1 + \\dfrac{{\\Delta x}}{{\\Delta y}}(y_{{max}} - y_1)$ |
+| LEFT  ($x = x_{{min}} = {cs_xmin}$) | $x$ | $y = y_1 + m(x_{{min}} - x_1)$ |
+| RIGHT ($x = x_{{max}} = {cs_xmax}$) | $x$ | $y = y_1 + m(x_{{max}} - x_1)$ |
+| BOTTOM ($y = y_{{min}} = {cs_ymin}$) | $y$ | $x = x_1 + \\dfrac{{1}}{{m}}(y_{{min}} - y_1)$ |
+| TOP  ($y = y_{{max}} = {cs_ymax}$) | $y$ | $x = x_1 + \\dfrac{{1}}{{m}}(y_{{max}} - y_1)$ |
 """)
 
         st.subheader("Endpoint Region Codes")
