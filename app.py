@@ -2001,6 +2001,246 @@ public class CohenSutherland {
 }
 ''',
     },
+    # ── Sutherland-Hodgman Polygon Clipping ───────────────────────────────────
+    "sutherland_hodgman": {
+        "Python": '''\
+def inside(p, edge, xmin, ymin, xmax, ymax):
+    x, y = p
+    if edge == 'LEFT':   return x >= xmin
+    if edge == 'RIGHT':  return x <= xmax
+    if edge == 'BOTTOM': return y >= ymin
+    return y <= ymax  # TOP
+
+def intersect(s, p, edge, xmin, ymin, xmax, ymax):
+    sx, sy = s; px, py = p
+    if edge == 'LEFT':
+        t = (xmin - sx) / (px - sx);  return (xmin, sy + t*(py-sy))
+    elif edge == 'RIGHT':
+        t = (xmax - sx) / (px - sx);  return (xmax, sy + t*(py-sy))
+    elif edge == 'BOTTOM':
+        t = (ymin - sy) / (py - sy);  return (sx + t*(px-sx), ymin)
+    else:  # TOP
+        t = (ymax - sy) / (py - sy);  return (sx + t*(px-sx), ymax)
+
+def clip_edge(polygon, edge, xmin, ymin, xmax, ymax):
+    output = []
+    if not polygon:
+        return output
+    s = polygon[-1]
+    for p in polygon:
+        p_in = inside(p, edge, xmin, ymin, xmax, ymax)
+        s_in = inside(s, edge, xmin, ymin, xmax, ymax)
+        if s_in and p_in:
+            output.append(p)                                           # In -> In
+        elif s_in and not p_in:
+            output.append(intersect(s, p, edge, xmin, ymin, xmax, ymax))  # In -> Out
+        elif not s_in and p_in:
+            output.append(intersect(s, p, edge, xmin, ymin, xmax, ymax))  # Out -> In
+            output.append(p)
+        # Out -> Out: add nothing
+        s = p
+    return output
+
+def sutherland_hodgman(polygon, xmin, ymin, xmax, ymax):
+    for edge in ['LEFT', 'RIGHT', 'BOTTOM', 'TOP']:
+        polygon = clip_edge(polygon, edge, xmin, ymin, xmax, ymax)
+        if not polygon:
+            break
+    return polygon
+
+# Example
+poly = [(1, 1), (7, 2), (6, 7), (2, 6)]
+clipped = sutherland_hodgman(poly, xmin=2, ymin=2, xmax=6, ymax=6)
+print("Clipped polygon:", clipped)
+''',
+        "C": '''\
+#include <stdio.h>
+#include <string.h>
+
+#define MAXV 64
+
+typedef struct { double x, y; } Point;
+
+static int inside(Point p, int edge,
+                  double xmin, double ymin, double xmax, double ymax) {
+    switch(edge) {
+        case 0: return p.x >= xmin;  /* LEFT   */
+        case 1: return p.x <= xmax;  /* RIGHT  */
+        case 2: return p.y >= ymin;  /* BOTTOM */
+        default:return p.y <= ymax;  /* TOP    */
+    }
+}
+
+static Point intersect(Point s, Point p, int edge,
+                        double xmin, double ymin, double xmax, double ymax) {
+    double t; Point r;
+    switch(edge) {
+        case 0: t=(xmin-s.x)/(p.x-s.x); r.x=xmin; r.y=s.y+t*(p.y-s.y); break;
+        case 1: t=(xmax-s.x)/(p.x-s.x); r.x=xmax; r.y=s.y+t*(p.y-s.y); break;
+        case 2: t=(ymin-s.y)/(p.y-s.y); r.y=ymin; r.x=s.x+t*(p.x-s.x); break;
+        default:t=(ymax-s.y)/(p.y-s.y); r.y=ymax; r.x=s.x+t*(p.x-s.x); break;
+    }
+    return r;
+}
+
+int clip_edge(Point *in, int n, Point *out, int edge,
+              double xmin, double ymin, double xmax, double ymax) {
+    int cnt = 0;
+    if (n == 0) return 0;
+    Point s = in[n-1];
+    for (int i = 0; i < n; i++) {
+        Point p = in[i];
+        int p_in = inside(p, edge, xmin, ymin, xmax, ymax);
+        int s_in = inside(s, edge, xmin, ymin, xmax, ymax);
+        if      ( s_in &&  p_in) { out[cnt++] = p; }
+        else if ( s_in && !p_in) { out[cnt++] = intersect(s,p,edge,xmin,ymin,xmax,ymax); }
+        else if (!s_in &&  p_in) { out[cnt++] = intersect(s,p,edge,xmin,ymin,xmax,ymax);
+                                   out[cnt++] = p; }
+        s = p;
+    }
+    return cnt;
+}
+
+int sutherland_hodgman(Point *poly, int n,
+                       double xmin, double ymin, double xmax, double ymax) {
+    static Point buf[MAXV];
+    for (int e = 0; e < 4 && n > 0; e++) {
+        n = clip_edge(poly, n, buf, e, xmin, ymin, xmax, ymax);
+        memcpy(poly, buf, n * sizeof(Point));
+    }
+    return n;
+}
+
+int main(void) {
+    Point poly[] = {{1,1},{7,2},{6,7},{2,6}};
+    int n = sutherland_hodgman(poly, 4, 2,2,6,6);
+    printf("Clipped polygon (%d vertices):\\n", n);
+    for (int i = 0; i < n; i++)
+        printf("  (%.4f, %.4f)\\n", poly[i].x, poly[i].y);
+    return 0;
+}
+''',
+        "C++": '''\
+#include <iostream>
+#include <vector>
+
+struct Point { double x, y; };
+
+static bool inside(Point p, int edge,
+                   double xmin, double ymin, double xmax, double ymax) {
+    switch(edge) {
+        case 0: return p.x >= xmin;
+        case 1: return p.x <= xmax;
+        case 2: return p.y >= ymin;
+        default:return p.y <= ymax;
+    }
+}
+
+static Point intersect(Point s, Point p, int edge,
+                        double xmin, double ymin, double xmax, double ymax) {
+    double t;
+    switch(edge) {
+        case 0: t=(xmin-s.x)/(p.x-s.x); return {xmin, s.y+t*(p.y-s.y)};
+        case 1: t=(xmax-s.x)/(p.x-s.x); return {xmax, s.y+t*(p.y-s.y)};
+        case 2: t=(ymin-s.y)/(p.y-s.y); return {s.x+t*(p.x-s.x), ymin};
+        default:t=(ymax-s.y)/(p.y-s.y); return {s.x+t*(p.x-s.x), ymax};
+    }
+}
+
+std::vector<Point> clipEdge(const std::vector<Point>& poly, int edge,
+                             double xmin, double ymin, double xmax, double ymax) {
+    std::vector<Point> out;
+    if (poly.empty()) return out;
+    Point s = poly.back();
+    for (auto& p : poly) {
+        bool p_in = inside(p, edge, xmin, ymin, xmax, ymax);
+        bool s_in = inside(s, edge, xmin, ymin, xmax, ymax);
+        if      ( s_in &&  p_in) { out.push_back(p); }
+        else if ( s_in && !p_in) { out.push_back(intersect(s,p,edge,xmin,ymin,xmax,ymax)); }
+        else if (!s_in &&  p_in) { out.push_back(intersect(s,p,edge,xmin,ymin,xmax,ymax));
+                                   out.push_back(p); }
+        s = p;
+    }
+    return out;
+}
+
+std::vector<Point> sutherlandHodgman(std::vector<Point> poly,
+                                      double xmin, double ymin,
+                                      double xmax, double ymax) {
+    for (int e = 0; e < 4 && !poly.empty(); e++)
+        poly = clipEdge(poly, e, xmin, ymin, xmax, ymax);
+    return poly;
+}
+
+int main() {
+    std::vector<Point> poly = {{1,1},{7,2},{6,7},{2,6}};
+    auto clipped = sutherlandHodgman(poly, 2,2,6,6);
+    std::cout << "Clipped polygon (" << clipped.size() << " vertices):\\n";
+    for (auto& v : clipped)
+        std::cout << "  (" << v.x << ", " << v.y << ")\\n";
+}
+''',
+        "Java": '''\
+import java.util.*;
+
+public class SutherlandHodgman {
+    record Point(double x, double y) {}
+
+    static boolean inside(Point p, int edge,
+                           double xmin, double ymin, double xmax, double ymax) {
+        return switch(edge) {
+            case 0 -> p.x() >= xmin;
+            case 1 -> p.x() <= xmax;
+            case 2 -> p.y() >= ymin;
+            default-> p.y() <= ymax;
+        };
+    }
+
+    static Point intersect(Point s, Point p, int edge,
+                            double xmin, double ymin, double xmax, double ymax) {
+        double t;
+        return switch(edge) {
+            case 0 -> { t=(xmin-s.x())/(p.x()-s.x()); yield new Point(xmin, s.y()+t*(p.y()-s.y())); }
+            case 1 -> { t=(xmax-s.x())/(p.x()-s.x()); yield new Point(xmax, s.y()+t*(p.y()-s.y())); }
+            case 2 -> { t=(ymin-s.y())/(p.y()-s.y()); yield new Point(s.x()+t*(p.x()-s.x()), ymin); }
+            default-> { t=(ymax-s.y())/(p.y()-s.y()); yield new Point(s.x()+t*(p.x()-s.x()), ymax); }
+        };
+    }
+
+    static List<Point> clipEdge(List<Point> poly, int edge,
+                                 double xmin, double ymin, double xmax, double ymax) {
+        List<Point> out = new ArrayList<>();
+        if (poly.isEmpty()) return out;
+        Point s = poly.get(poly.size()-1);
+        for (Point p : poly) {
+            boolean pIn = inside(p, edge, xmin, ymin, xmax, ymax);
+            boolean sIn = inside(s, edge, xmin, ymin, xmax, ymax);
+            if      ( sIn &&  pIn) { out.add(p); }
+            else if ( sIn && !pIn) { out.add(intersect(s,p,edge,xmin,ymin,xmax,ymax)); }
+            else if (!sIn &&  pIn) { out.add(intersect(s,p,edge,xmin,ymin,xmax,ymax));
+                                     out.add(p); }
+            s = p;
+        }
+        return out;
+    }
+
+    static List<Point> clip(List<Point> poly,
+                             double xmin, double ymin, double xmax, double ymax) {
+        for (int e = 0; e < 4 && !poly.isEmpty(); e++)
+            poly = clipEdge(poly, e, xmin, ymin, xmax, ymax);
+        return poly;
+    }
+
+    public static void main(String[] args) {
+        var poly = List.of(new Point(1,1), new Point(7,2),
+                           new Point(6,7), new Point(2,6));
+        var clipped = clip(new ArrayList<>(poly), 2,2,6,6);
+        System.out.println("Clipped polygon (" + clipped.size() + " vertices):");
+        clipped.forEach(v -> System.out.printf("  (%.4f, %.4f)%n", v.x(), v.y()));
+    }
+}
+''',
+    },
 }
 
 _LANG_ICONS = {
@@ -3019,6 +3259,167 @@ def draw_cohen_sutherland(ox1, oy1, ox2, oy2,
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# Sutherland-Hodgman Polygon Clipping
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _sh_inside(p, edge, xmin, ymin, xmax, ymax):
+    x, y = p
+    if edge == 'LEFT':   return x >= xmin
+    if edge == 'RIGHT':  return x <= xmax
+    if edge == 'BOTTOM': return y >= ymin
+    return y <= ymax  # TOP
+
+
+def _sh_intersect(s, p, edge, xmin, ymin, xmax, ymax):
+    sx, sy = s; px, py = p
+    if edge == 'LEFT':
+        t = (xmin - sx) / (px - sx)
+        return (xmin, round(sy + t * (py - sy), 6))
+    if edge == 'RIGHT':
+        t = (xmax - sx) / (px - sx)
+        return (xmax, round(sy + t * (py - sy), 6))
+    if edge == 'BOTTOM':
+        t = (ymin - sy) / (py - sy)
+        return (round(sx + t * (px - sx), 6), ymin)
+    # TOP
+    t = (ymax - sy) / (py - sy)
+    return (round(sx + t * (px - sx), 6), ymax)
+
+
+@st.cache_data
+def run_sutherland_hodgman(polygon, xmin, ymin, xmax, ymax):
+    """
+    Clip polygon against rectangle [xmin,xmax]×[ymin,ymax].
+    Returns (boundary_passes, final_vertices).
+    boundary_passes: list of dicts with keys 'edge', 'inside_test', 'rows', 'output'.
+    """
+    EDGES = [
+        ('LEFT',   f'x ≥ {xmin}'),
+        ('RIGHT',  f'x ≤ {xmax}'),
+        ('BOTTOM', f'y ≥ {ymin}'),
+        ('TOP',    f'y ≤ {ymax}'),
+    ]
+
+    def fmt(v):
+        return f"({round(v[0], 4)}, {round(v[1], 4)})"
+
+    boundary_passes = []
+    current = list(polygon)
+
+    for edge_name, inside_test in EDGES:
+        rows = []
+        output = []
+        if not current:
+            boundary_passes.append({
+                'edge': edge_name, 'inside_test': inside_test,
+                'rows': [], 'output': [],
+            })
+            continue
+
+        s = current[-1]
+        for p in current:
+            s_in = _sh_inside(s, edge_name, xmin, ymin, xmax, ymax)
+            p_in = _sh_inside(p, edge_name, xmin, ymin, xmax, ymax)
+
+            if s_in and p_in:
+                case, action, added = "In → In", "Output P", [p]
+                output.append(p)
+            elif not s_in and not p_in:
+                case, action, added = "Out → Out", "None", []
+            elif not s_in and p_in:
+                ix = _sh_intersect(s, p, edge_name, xmin, ymin, xmax, ymax)
+                case, action, added = "Out → In", "Output I + P", [ix, p]
+                output.extend([ix, p])
+            else:  # s_in and not p_in
+                ix = _sh_intersect(s, p, edge_name, xmin, ymin, xmax, ymax)
+                case, action, added = "In → Out", "Output I", [ix]
+                output.append(ix)
+
+            rows.append({
+                "S": fmt(s),
+                "P": fmt(p),
+                "S inside?": "✓" if s_in else "✗",
+                "P inside?": "✓" if p_in else "✗",
+                "Case": case,
+                "Action": action,
+                "Vertices Added": ", ".join(fmt(v) for v in added) if added else "—",
+            })
+            s = p
+
+        boundary_passes.append({
+            'edge': edge_name, 'inside_test': inside_test,
+            'rows': rows, 'output': output,
+        })
+        current = output
+
+    return boundary_passes, current
+
+
+def draw_sutherland_hodgman(polygon, clipped, xmin, ymin, xmax, ymax):
+    """Plot original polygon, clipping window, and clipped polygon."""
+    fig, ax = plt.subplots(figsize=(6, 6))
+    fig.patch.set_facecolor("#0e1117")
+    ax.set_facecolor("#1a1d23")
+
+    # ── Viewport rectangle ────────────────────────────────────────────────────
+    rect = mpatches.Rectangle(
+        (xmin, ymin), xmax - xmin, ymax - ymin,
+        linewidth=2, edgecolor="#f39c12", facecolor="#f39c1215", zorder=2,
+    )
+    ax.add_patch(rect)
+
+    all_x = [v[0] for v in polygon] + [xmin, xmax]
+    all_y = [v[1] for v in polygon] + [ymin, ymax]
+
+    # ── Original polygon ──────────────────────────────────────────────────────
+    orig_x = [v[0] for v in polygon] + [polygon[0][0]]
+    orig_y = [v[1] for v in polygon] + [polygon[0][1]]
+    ax.plot(orig_x, orig_y, color="#e74c3c", linewidth=1.4, linestyle="--",
+            label="Original polygon", zorder=3, alpha=0.8)
+    ax.scatter([v[0] for v in polygon], [v[1] for v in polygon],
+               color="#e74c3c", s=45, zorder=5)
+    for i, v in enumerate(polygon):
+        ax.text(v[0], v[1], f"  V{i+1}({v[0]},{v[1]})",
+                color="#e74c3c", fontsize=7, va="bottom")
+
+    # ── Clipped polygon ───────────────────────────────────────────────────────
+    if clipped:
+        clip_x = [v[0] for v in clipped] + [clipped[0][0]]
+        clip_y = [v[1] for v in clipped] + [clipped[0][1]]
+        ax.fill([v[0] for v in clipped], [v[1] for v in clipped],
+                color="#4361ee", alpha=0.25, zorder=2)
+        ax.plot(clip_x, clip_y, color="#2ecc71", linewidth=2.2,
+                label="Clipped polygon", zorder=4)
+        ax.scatter([v[0] for v in clipped], [v[1] for v in clipped],
+                   color="#2ecc71", s=55, zorder=6,
+                   edgecolors="#27ae60", linewidths=1)
+        for i, v in enumerate(clipped):
+            ax.text(v[0], v[1], f"  C{i+1}({round(v[0],3)},{round(v[1],3)})",
+                    color="#2ecc71", fontsize=7, va="top")
+        all_x += [v[0] for v in clipped]
+        all_y += [v[1] for v in clipped]
+
+    margin = max((xmax - xmin), (ymax - ymin)) * 0.4
+    ax.set_xlim(min(all_x) - margin, max(all_x) + margin)
+    ax.set_ylim(min(all_y) - margin, max(all_y) + margin)
+    ax.set_aspect("equal", adjustable="datalim")
+    ax.grid(True, color="#2a2d35", linewidth=0.5, linestyle="--")
+    ax.axhline(0, color="#333333", linewidth=0.6)
+    ax.axvline(0, color="#333333", linewidth=0.6)
+    ax.tick_params(colors="#777777", labelsize=8)
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#333333")
+    ax.set_title(
+        f"Sutherland-Hodgman Clipping  —  viewport [{xmin},{xmax}]×[{ymin},{ymax}]",
+        color="#dddddd", fontsize=10, pad=10,
+    )
+    ax.legend(facecolor="#1a1d23", edgecolor="#333333",
+              labelcolor="#cccccc", fontsize=8)
+    plt.tight_layout()
+    return fig
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # SEARCH BAR
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -3202,9 +3603,10 @@ tab_line, tab_circle, tab_2d, tab_3d = st.tabs([
 # TAB 1 — Line Drawing
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_line:
-    subtab_line_draw, subtab_line_clip = st.tabs([
+    subtab_line_draw, subtab_line_clip, subtab_poly_clip = st.tabs([
         "╱  Drawing Algorithms",
         "✂  Line Clipping",
+        "⬡  Polygon Clipping",
     ])
 
 with subtab_line_draw:
@@ -3477,6 +3879,127 @@ $$x = x_1 + \\frac{{1}}{{m}} \\cdot (y_{{boundary}} - y_1) = x_1 + \\frac{{\\Del
         plt.close(fig_cs)
 
         show_export_code("cohen_sutherland", "Export Cohen-Sutherland Code")
+
+        st.divider()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 1 — Polygon Clipping (Sutherland-Hodgman)
+# ─────────────────────────────────────────────────────────────────────────────
+with subtab_poly_clip:
+    section_header("Sutherland-Hodgman Polygon Clipping", "tba", "tba")
+
+    with st.expander("Edge-Clip Cases"):
+        st.markdown(r"""
+The polygon is clipped against **each boundary edge** of the viewport in turn.
+For every consecutive vertex pair **S → P** of the current polygon, one of four cases applies:
+
+| Case | S | P | Action | Output |
+|------|---|---|--------|--------|
+| **In → In** | inside | inside | Keep destination | P |
+| **Out → Out** | outside | outside | Discard | — |
+| **Out → In** | outside | inside | Entering clip region | Intersection **I** + P |
+| **In → Out** | inside | outside | Leaving clip region | Intersection **I** |
+
+The output of each boundary pass becomes the input polygon for the next.
+""")
+
+    with st.expander("Inside Test & Intersection Formulas"):
+        st.markdown(r"""
+**Inside test** per boundary:
+
+| Boundary | Inside condition |
+|----------|-----------------|
+| LEFT   | $x \geq x_{min}$ |
+| RIGHT  | $x \leq x_{max}$ |
+| BOTTOM | $y \geq y_{min}$ |
+| TOP    | $y \leq y_{max}$ |
+
+**Intersection** between segment $S \to P$ and a boundary uses the parametric form $t \in [0,1]$:
+
+$$\text{LEFT / RIGHT:}   \quad t = \frac{x_{boundary} - S_x}{P_x - S_x}, \quad y_I = S_y + t\,(P_y - S_y)$$
+
+$$\text{BOTTOM / TOP:}   \quad t = \frac{y_{boundary} - S_y}{P_y - S_y}, \quad x_I = S_x + t\,(P_x - S_x)$$
+""")
+
+    st.header("Clipping Window")
+    pw1, pw2, pw3, pw4 = st.columns(4)
+    with pw1: sh_xmin = st.number_input("x_min", value=2.0, step=1.0, key="sh_xmin")
+    with pw2: sh_ymin = st.number_input("y_min", value=2.0, step=1.0, key="sh_ymin")
+    with pw3: sh_xmax = st.number_input("x_max", value=6.0, step=1.0, key="sh_xmax")
+    with pw4: sh_ymax = st.number_input("y_max", value=6.0, step=1.0, key="sh_ymax")
+
+    st.header("Polygon Vertices")
+    sh_num_verts = st.slider("Number of vertices", min_value=3, max_value=10, value=4, key="sh_num_verts")
+
+    _sh_defaults = [(1.0, 1.0), (7.0, 2.0), (6.0, 7.0), (2.0, 6.0),
+                    (4.0, 0.0), (8.0, 4.0), (5.0, 9.0), (0.0, 5.0),
+                    (3.0, 3.0), (6.0, 1.0)]
+    sh_polygon = []
+    for _vi in range(sh_num_verts):
+        _vc1, _vc2 = st.columns(2)
+        with _vc1:
+            _vx = st.number_input(f"Vertex {_vi+1}  x", value=_sh_defaults[_vi][0],
+                                  step=1.0, format="%.1f", key=f"sh_vx_{_vi}")
+        with _vc2:
+            _vy = st.number_input(f"Vertex {_vi+1}  y", value=_sh_defaults[_vi][1],
+                                  step=1.0, format="%.1f", key=f"sh_vy_{_vi}")
+        sh_polygon.append((float(_vx), float(_vy)))
+
+    if len(sh_polygon) < 3:
+        st.warning("Please enter at least 3 vertices.")
+    elif float(sh_xmin) >= float(sh_xmax) or float(sh_ymin) >= float(sh_ymax):
+        st.error("Invalid viewport: x_min must be < x_max and y_min must be < y_max.")
+    else:
+        sh_xmin = float(sh_xmin); sh_ymin = float(sh_ymin)
+        sh_xmax = float(sh_xmax); sh_ymax = float(sh_ymax)
+
+        st.divider()
+
+        sh_passes, sh_clipped = run_sutherland_hodgman(
+            tuple(sh_polygon), sh_xmin, sh_ymin, sh_xmax, sh_ymax
+        )
+
+        # ── Per-boundary tables ───────────────────────────────────────────────
+        st.subheader("Boundary-by-Boundary Clip Tables")
+        for bp in sh_passes:
+            edge_label = f"{bp['edge']}  (inside: {bp['inside_test']})"
+            with st.expander(edge_label, expanded=True):
+                if bp['rows']:
+                    st.dataframe(pd.DataFrame(bp['rows']), width="stretch", hide_index=True)
+                    out_pts = ", ".join(
+                        f"({round(v[0],4)}, {round(v[1],4)})" for v in bp['output']
+                    ) if bp['output'] else "∅  (polygon fully clipped)"
+                    st.info(f"**Output polygon after {bp['edge']} clip:** {out_pts}")
+                else:
+                    st.warning("Polygon was already empty before this boundary.")
+
+        st.divider()
+
+        # ── Result ────────────────────────────────────────────────────────────
+        st.subheader("Result")
+        if sh_clipped:
+            result_data = [
+                {"Vertex": f"C{i+1}",
+                 "x": round(v[0], 6),
+                 "y": round(v[1], 6)}
+                for i, v in enumerate(sh_clipped)
+            ]
+            st.dataframe(pd.DataFrame(result_data), width="stretch", hide_index=True)
+        else:
+            st.error("Polygon is entirely outside the viewport — fully clipped away.")
+
+        st.divider()
+
+        # ── Visualization ─────────────────────────────────────────────────────
+        st.subheader("Visualization")
+        fig_sh = draw_sutherland_hodgman(
+            sh_polygon, sh_clipped, sh_xmin, sh_ymin, sh_xmax, sh_ymax
+        )
+        st.pyplot(fig_sh, use_container_width=False)
+        plt.close(fig_sh)
+
+        show_export_code("sutherland_hodgman", "Export Sutherland-Hodgman Code")
 
         st.divider()
 
