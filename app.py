@@ -3403,6 +3403,30 @@ Each endpoint is assigned a 4-bit **outcode**:
 - Otherwise → **Clip** against the boundary indicated by the outside endpoint’s code
 """)
 
+        dx_cs = cs_x2 - cs_x1
+        dy_cs = cs_y2 - cs_y1
+        with st.expander("Intersection Formulas"):
+            st.markdown(f"""
+The slope of the line is derived from the two endpoints:
+
+$$m = \\frac{{\\Delta y}}{{\\Delta x}} = \\frac{{y_2 - y_1}}{{x_2 - x_1}} = \\frac{{{cs_y2} - {cs_y1}}}{{{cs_x2} - {cs_x1}}} = \\frac{{{dy_cs}}}{{{dx_cs}}}$$
+
+When clipping against a **vertical** boundary (LEFT / RIGHT) — $x$ is known, solve for $y$:
+
+$$y = y_1 + m \\cdot (x_{{boundary}} - x_1) = y_1 + \\frac{{\\Delta y}}{{\\Delta x}}(x_{{boundary}} - x_1)$$
+
+When clipping against a **horizontal** boundary (TOP / BOTTOM) — $y$ is known, solve for $x$:
+
+$$x = x_1 + \\frac{{1}}{{m}} \\cdot (y_{{boundary}} - y_1) = x_1 + \\frac{{\\Delta x}}{{\\Delta y}}(y_{{boundary}} - y_1)$$
+
+| Boundary | Known | Formula applied |
+|----------|-------|-----------------|
+| LEFT  ($x = x_{{min}} = {cs_xmin}$) | $x$ | $y = y_1 + \\dfrac{{\\Delta y}}{{\\Delta x}}(x_{{min}} - x_1)$ |
+| RIGHT ($x = x_{{max}} = {cs_xmax}$) | $x$ | $y = y_1 + \\dfrac{{\\Delta y}}{{\\Delta x}}(x_{{max}} - x_1)$ |
+| BOTTOM ($y = y_{{min}} = {cs_ymin}$) | $y$ | $x = x_1 + \\dfrac{{\\Delta x}}{{\\Delta y}}(y_{{min}} - y_1)$ |
+| TOP  ($y = y_{{max}} = {cs_ymax}$) | $y$ | $x = x_1 + \\dfrac{{\\Delta x}}{{\\Delta y}}(y_{{max}} - y_1)$ |
+""")
+
         st.subheader("Endpoint Region Codes")
         oc1 = _cs_compute_code(cs_x1, cs_y1, cs_xmin, cs_ymin, cs_xmax, cs_ymax)
         oc2 = _cs_compute_code(cs_x2, cs_y2, cs_xmin, cs_ymin, cs_xmax, cs_ymax)
